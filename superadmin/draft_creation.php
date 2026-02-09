@@ -532,23 +532,17 @@ $recent_drafts = $recent_stmt->fetchAll();
             color: var(--qc-blue-dark);
         }
         
-        /* DRAFT CREATION STYLES */
-        .draft-creation-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px 0;
-        }
-        
+        /* FIXED MODULE HEADER - IMPROVED */
         .module-header {
-            margin-bottom: 40px;
-            padding: 25px;
             background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
             color: var(--white);
+            padding: 40px;
             border-radius: var(--border-radius-lg);
-            box-shadow: var(--shadow-lg);
-            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: var(--shadow-xl);
+            margin-bottom: 40px;
             position: relative;
             overflow: hidden;
+            border: 2px solid var(--qc-gold);
         }
         
         .module-header::before {
@@ -559,53 +553,208 @@ $recent_drafts = $recent_stmt->fetchAll();
             right: 0;
             bottom: 0;
             background: 
-                linear-gradient(45deg, transparent 49%, rgba(212, 175, 55, 0.1) 50%, transparent 51%),
-                linear-gradient(-45deg, transparent 49%, rgba(212, 175, 55, 0.1) 50%, transparent 51%);
-            background-size: 80px 80px;
+                radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212, 175, 55, 0.05) 10px, rgba(212, 175, 55, 0.05) 20px);
         }
         
-        .module-title {
+        .module-header-content {
             position: relative;
             z-index: 2;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .module-title h1 {
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: var(--white);
-        }
-        
-        .module-title i {
-            color: var(--qc-gold);
-            font-size: 2rem;
-        }
-        
-        .module-subtitle {
-            position: relative;
-            z-index: 2;
-            font-size: 1.1rem;
-            color: rgba(255, 255, 255, 0.9);
-            line-height: 1.6;
         }
         
         .module-badge {
             display: inline-block;
-            background: rgba(212, 175, 55, 0.1);
-            border: 1px solid rgba(212, 175, 55, 0.3);
+            background: rgba(212, 175, 55, 0.2);
+            border: 2px solid var(--qc-gold);
             color: var(--qc-gold);
-            padding: 8px 25px;
-            border-radius: 30px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            letter-spacing: 1px;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
             margin-bottom: 25px;
             text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .module-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .module-icon {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--qc-gold);
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--qc-gold);
+        }
+        
+        .module-title {
+            flex: 1;
+        }
+        
+        .module-title h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--white);
+            margin-bottom: 5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .module-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+            margin-bottom: 20px;
+            max-width: 800px;
+        }
+        
+        .module-stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 25px;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .stat-icon {
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid var(--qc-gold);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--qc-gold);
+        }
+        
+        .stat-info h3 {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--white);
+            line-height: 1;
+        }
+        
+        .stat-info p {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        /* WORKING STEPS INDICATOR */
+        .steps-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            padding: 30px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--gray-light);
+        }
+        
+        .steps-indicator::before {
+            content: '';
+            position: absolute;
+            top: 58px;
+            left: 50px;
+            right: 50px;
+            height: 4px;
+            background: var(--gray-light);
+            z-index: 1;
+        }
+        
+        .step {
             position: relative;
             z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .step:hover .step-number {
+            transform: scale(1.1);
+        }
+        
+        .step-number {
+            width: 60px;
+            height: 60px;
+            background: var(--white);
+            border: 4px solid var(--gray-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--gray);
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .step.active .step-number {
+            background: var(--qc-blue);
+            border-color: var(--qc-blue);
+            color: var(--white);
+            box-shadow: 0 6px 20px rgba(0, 51, 102, 0.3);
+        }
+        
+        .step.completed .step-number {
+            background: var(--qc-green);
+            border-color: var(--qc-green);
+            color: var(--white);
+        }
+        
+        .step.completed .step-number::after {
+            content: '✓';
+            position: absolute;
+            font-size: 1.5rem;
+        }
+        
+        .step-label {
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-label {
+            color: var(--qc-blue);
+            font-weight: bold;
+            transform: translateY(5px);
+        }
+        
+        .step-description {
+            font-size: 0.85rem;
+            color: var(--gray);
+            text-align: center;
+            max-width: 150px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .step.active .step-description {
+            display: block;
         }
         
         /* FORM STYLES */
@@ -697,10 +846,6 @@ $recent_drafts = $recent_stmt->fetchAll();
             outline: none;
             border-color: var(--qc-blue);
             box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
-        }
-        
-        .form-control.select2 {
-            padding: 10px 15px;
         }
         
         textarea.form-control {
@@ -1033,6 +1178,122 @@ $recent_drafts = $recent_stmt->fetchAll();
         .status-pending { background: #dbeafe; color: #1e40af; }
         .status-approved { background: #d1fae5; color: #065f46; }
         
+        /* MODAL STYLES */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
+            color: var(--white);
+            padding: 25px 30px;
+            border-top-left-radius: var(--border-radius-lg);
+            border-top-right-radius: var(--border-radius-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--qc-gold);
+        }
+        
+        .modal-header h2 {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--white);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .modal-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        
+        .modal-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .modal-section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            color: var(--qc-blue);
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+        
+        .modal-section-title i {
+            color: var(--qc-gold);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-light);
+        }
+        
         /* Action Buttons */
         .form-actions {
             display: flex;
@@ -1087,6 +1348,16 @@ $recent_drafts = $recent_stmt->fetchAll();
             box-shadow: var(--shadow-lg);
         }
         
+        .btn-danger {
+            background: linear-gradient(135deg, var(--red) 0%, #9b2c2c 100%);
+            color: var(--white);
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        
         /* Alerts */
         .alert {
             padding: 20px;
@@ -1112,72 +1383,6 @@ $recent_drafts = $recent_stmt->fetchAll();
         
         .alert-icon {
             font-size: 1.5rem;
-        }
-        
-        /* Steps Indicator */
-        .steps-indicator {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 40px;
-            position: relative;
-        }
-        
-        .steps-indicator::before {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--gray-light);
-            z-index: 1;
-        }
-        
-        .step {
-            position: relative;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            flex: 1;
-        }
-        
-        .step-number {
-            width: 40px;
-            height: 40px;
-            background: var(--white);
-            border: 3px solid var(--gray-light);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: var(--gray);
-            transition: all 0.3s ease;
-        }
-        
-        .step.active .step-number {
-            background: var(--qc-blue);
-            border-color: var(--qc-blue);
-            color: var(--white);
-        }
-        
-        .step.completed .step-number {
-            background: var(--qc-green);
-            border-color: var(--qc-green);
-            color: var(--white);
-        }
-        
-        .step-label {
-            font-weight: 600;
-            color: var(--gray);
-            font-size: 0.9rem;
-            text-align: center;
-        }
-        
-        .step.active .step-label {
-            color: var(--qc-blue);
         }
         
         /* FOOTER */
@@ -1346,6 +1551,17 @@ $recent_drafts = $recent_stmt->fetchAll();
                 z-index: 1001;
                 font-size: 1.2rem;
             }
+            
+            .module-stats {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .module-title-wrapper {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
         }
         
         @media (max-width: 768px) {
@@ -1358,7 +1574,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                 grid-template-columns: 1fr;
             }
             
-            .form-actions {
+            .form-actions, .modal-actions {
                 flex-direction: column;
             }
             
@@ -1369,11 +1585,23 @@ $recent_drafts = $recent_stmt->fetchAll();
             
             .steps-indicator {
                 flex-direction: column;
-                gap: 20px;
+                gap: 30px;
+                padding: 20px;
             }
             
             .steps-indicator::before {
                 display: none;
+            }
+            
+            .step {
+                flex-direction: row;
+                justify-content: flex-start;
+                text-align: left;
+            }
+            
+            .step-number {
+                width: 50px;
+                height: 50px;
             }
         }
         
@@ -1469,40 +1697,82 @@ $recent_drafts = $recent_stmt->fetchAll();
         <!-- Main Content -->
         <main class="main-content">
             <div class="draft-creation-container">
-                <!-- Module Header -->
+                <!-- FIXED MODULE HEADER -->
                 <div class="module-header fade-in">
-                    <div class="module-badge">DRAFT CREATION MODULE</div>
-                    <div class="module-title">
-                        <i class="fas fa-edit"></i>
-                        <h1>Create New Draft</h1>
+                    <div class="module-header-content">
+                        <div class="module-badge">DRAFT CREATION MODULE</div>
+                        
+                        <div class="module-title-wrapper">
+                            <div class="module-icon">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div class="module-title">
+                                <h1>Create New Draft Document</h1>
+                                <p class="module-subtitle">
+                                    Create new ordinance or resolution drafts with standard legal formats. 
+                                    Assign sponsors and authors, upload supporting documents, and register draft records.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="module-stats">
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3><?php echo count($recent_drafts); ?></h3>
+                                    <p>Your Drafts</p>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3><?php echo count($available_users); ?></h3>
+                                    <p>Available Authors</p>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-templates"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3><?php echo count($templates); ?></h3>
+                                    <p>Templates Available</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <p class="module-subtitle">
-                        Create new ordinance or resolution drafts with standard legal formats. 
-                        Assign sponsors and authors, upload supporting documents, and register draft records.
-                    </p>
                 </div>
 
-                <!-- Steps Indicator -->
+                <!-- WORKING STEPS INDICATOR -->
                 <div class="steps-indicator fade-in">
-                    <div class="step active">
+                    <div class="step active" data-step="1">
                         <div class="step-number">1</div>
                         <div class="step-label">Document Type</div>
+                        <div class="step-description">Select ordinance or resolution</div>
                     </div>
-                    <div class="step">
+                    <div class="step" data-step="2">
                         <div class="step-number">2</div>
                         <div class="step-label">Template</div>
+                        <div class="step-description">Choose a template or start blank</div>
                     </div>
-                    <div class="step">
+                    <div class="step" data-step="3">
                         <div class="step-number">3</div>
                         <div class="step-label">Content</div>
+                        <div class="step-description">Write your document content</div>
                     </div>
-                    <div class="step">
+                    <div class="step" data-step="4">
                         <div class="step-number">4</div>
                         <div class="step-label">Authors & Files</div>
+                        <div class="step-description">Assign authors and upload files</div>
                     </div>
-                    <div class="step">
+                    <div class="step" data-step="5">
                         <div class="step-number">5</div>
                         <div class="step-label">Review & Submit</div>
+                        <div class="step-description">Review and create draft</div>
                     </div>
                 </div>
 
@@ -1527,7 +1797,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                         <!-- Main Form -->
                         <div class="form-main">
                             <!-- Document Type Selection -->
-                            <div class="form-section">
+                            <div class="form-section step-content" data-step="1">
                                 <h3 class="section-title">
                                     <i class="fas fa-file-alt"></i>
                                     1. Select Document Type
@@ -1559,7 +1829,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                             </div>
 
                             <!-- Document Details -->
-                            <div class="form-section">
+                            <div class="form-section step-content" data-step="2" style="display: none;">
                                 <h3 class="section-title">
                                     <i class="fas fa-info-circle"></i>
                                     2. Document Details
@@ -1578,17 +1848,9 @@ $recent_drafts = $recent_stmt->fetchAll();
                                               placeholder="Provide a brief summary of what this document aims to accomplish" 
                                               rows="4" required></textarea>
                                 </div>
-                            </div>
-
-                            <!-- Template Selection -->
-                            <div class="form-section">
-                                <h3 class="section-title">
-                                    <i class="fas fa-file-alt"></i>
-                                    3. Select Template (Optional)
-                                </h3>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Choose a Template</label>
+                                    <label class="form-label">Select Template (Optional)</label>
                                     <div class="template-options">
                                         <div class="template-option" onclick="selectTemplate('none')">
                                             <input type="radio" name="template_id" value="" class="template-radio" checked>
@@ -1614,10 +1876,10 @@ $recent_drafts = $recent_stmt->fetchAll();
                             </div>
 
                             <!-- Content Editor -->
-                            <div class="form-section">
+                            <div class="form-section step-content" data-step="3" style="display: none;">
                                 <h3 class="section-title">
                                     <i class="fas fa-edit"></i>
-                                    4. Document Content
+                                    3. Document Content
                                 </h3>
                                 
                                 <div class="form-group">
@@ -1626,15 +1888,12 @@ $recent_drafts = $recent_stmt->fetchAll();
                                     <textarea id="content" name="content" style="display: none;" required></textarea>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Sidebar -->
-                        <div class="form-sidebar">
-                            <!-- Author Assignment -->
-                            <div class="form-section">
+                            <!-- Authors and Files -->
+                            <div class="form-section step-content" data-step="4" style="display: none;">
                                 <h3 class="section-title">
                                     <i class="fas fa-user-edit"></i>
-                                    Author Assignment
+                                    4. Authors and Supporting Documents
                                 </h3>
                                 
                                 <div class="form-group">
@@ -1663,14 +1922,6 @@ $recent_drafts = $recent_stmt->fetchAll();
                                         <?php endforeach; ?>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Supporting Documents -->
-                            <div class="form-section">
-                                <h3 class="section-title">
-                                    <i class="fas fa-paperclip"></i>
-                                    Supporting Documents
-                                </h3>
                                 
                                 <div class="form-group">
                                     <label class="form-label">Upload Supporting Files</label>
@@ -1693,6 +1944,41 @@ $recent_drafts = $recent_stmt->fetchAll();
                                 </div>
                             </div>
 
+                            <!-- Review and Submit -->
+                            <div class="form-section step-content" data-step="5" style="display: none;">
+                                <h3 class="section-title">
+                                    <i class="fas fa-check-circle"></i>
+                                    5. Review and Submit
+                                </h3>
+                                
+                                <div class="review-summary" id="reviewSummary">
+                                    <p>Please fill in all the previous steps to see the review summary.</p>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Additional Notes (Optional)</label>
+                                    <textarea id="notes" name="notes" class="form-control" 
+                                              placeholder="Any additional notes or instructions for this draft..." 
+                                              rows="3"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Navigation Buttons -->
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">
+                                    <i class="fas fa-arrow-left"></i> Previous Step
+                                </button>
+                                <button type="button" class="btn btn-primary" id="nextBtn">
+                                    Next Step <i class="fas fa-arrow-right"></i>
+                                </button>
+                                <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                                    <i class="fas fa-check"></i> Create Draft
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar -->
+                        <div class="form-sidebar">
                             <!-- Quick Actions -->
                             <div class="form-section">
                                 <h3 class="section-title">
@@ -1716,15 +2002,57 @@ $recent_drafts = $recent_stmt->fetchAll();
                                 </div>
                             </div>
 
-                            <!-- Form Actions -->
+                            <!-- Progress Summary -->
                             <div class="form-section">
-                                <div class="form-actions">
-                                    <a href="creation.php" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left"></i> Back
-                                    </a>
-                                    <button type="submit" class="btn btn-success">
-                                        <i class="fas fa-check"></i> Create Draft
-                                    </button>
+                                <h3 class="section-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    Progress Summary
+                                </h3>
+                                
+                                <div id="progressSummary">
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>Overall Progress</span>
+                                            <span id="progressPercent">20%</span>
+                                        </div>
+                                        <div style="height: 10px; background: var(--gray-light); border-radius: 5px; overflow: hidden;">
+                                            <div id="progressBar" style="height: 100%; width: 20%; background: var(--qc-green); border-radius: 5px; transition: width 0.3s ease;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="font-size: 0.9rem;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>Current Step:</span>
+                                            <strong id="currentStepDisplay">1/5</strong>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>Document Type:</span>
+                                            <span id="docTypeDisplay">Ordinance</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Authors Selected:</span>
+                                            <span id="authorsCount">1</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Help Section -->
+                            <div class="form-section">
+                                <h3 class="section-title">
+                                    <i class="fas fa-question-circle"></i>
+                                    Need Help?
+                                </h3>
+                                
+                                <div style="font-size: 0.9rem; color: var(--gray);">
+                                    <p style="margin-bottom: 10px;">For assistance with:</p>
+                                    <ul style="padding-left: 20px; margin-bottom: 15px;">
+                                        <li>Document formats</li>
+                                        <li>Template selection</li>
+                                        <li>Author assignment</li>
+                                        <li>File uploads</li>
+                                    </ul>
+                                    <p>Contact the <strong>Council Secretariat</strong> at extension 1234 or email <strong>secretariat@qc.gov.ph</strong></p>
                                 </div>
                             </div>
                         </div>
@@ -1765,10 +2093,14 @@ $recent_drafts = $recent_stmt->fetchAll();
                                     <span><?php echo date('M d, Y', strtotime($draft['created_at'])); ?></span>
                                 </div>
                             </div>
-                            <a href="edit_draft.php?type=<?php echo $draft['doc_type']; ?>&id=<?php echo $draft['id']; ?>" 
-                               class="btn btn-secondary" style="padding: 8px 15px;">
+                            <button type="button" class="btn btn-secondary edit-draft-btn" 
+                                    data-draft-id="<?php echo $draft['id']; ?>"
+                                    data-draft-type="<?php echo $draft['doc_type']; ?>"
+                                    data-draft-number="<?php echo htmlspecialchars($draft['doc_number']); ?>"
+                                    data-draft-title="<?php echo htmlspecialchars($draft['title']); ?>"
+                                    data-draft-status="<?php echo $draft['status']; ?>">
                                 <i class="fas fa-edit"></i> Edit
-                            </a>
+                            </button>
                         </li>
                         <?php endforeach; ?>
                     </ul>
@@ -1776,6 +2108,67 @@ $recent_drafts = $recent_stmt->fetchAll();
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- EDIT DRAFT MODAL -->
+    <div class="modal-overlay" id="editDraftModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Edit Draft</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Draft Information
+                    </h3>
+                    <div id="modalDraftInfo">
+                        <!-- Draft info will be loaded here -->
+                    </div>
+                </div>
+                
+                <div class="modal-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-edit"></i>
+                        Quick Actions
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <button type="button" class="btn btn-primary" id="modalViewBtn">
+                            <i class="fas fa-eye"></i> View Full
+                        </button>
+                        <button type="button" class="btn btn-success" id="modalUpdateBtn">
+                            <i class="fas fa-sync-alt"></i> Update
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="modalVersionBtn">
+                            <i class="fas fa-code-branch"></i> Versions
+                        </button>
+                        <button type="button" class="btn btn-danger" id="modalDeleteBtn">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="modal-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-history"></i>
+                        Recent Activity
+                    </h3>
+                    <div id="modalActivityLog">
+                        <!-- Activity log will be loaded here -->
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="modalCancelBtn">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="modalContinueBtn">
+                        <i class="fas fa-external-link-alt"></i> Continue to Edit
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Footer -->
@@ -1848,6 +2241,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         // Sync Quill content with form textarea
         quill.on('text-change', function() {
             document.getElementById('content').value = quill.root.innerHTML;
+            updateProgress();
         });
 
         // Set current date
@@ -1973,6 +2367,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             const dataTransfer = new DataTransfer();
             uploadedFiles.forEach(file => dataTransfer.items.add(file));
             fileInput.files = dataTransfer.files;
+            updateProgress();
         }
         
         function validateFile(file) {
@@ -2017,6 +2412,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             fileRemove.addEventListener('click', function() {
                 removeFile(file);
                 fileItem.remove();
+                updateProgress();
             });
             
             fileItem.appendChild(fileIcon);
@@ -2068,6 +2464,8 @@ $recent_drafts = $recent_stmt->fetchAll();
                 });
                 document.querySelector('input[name="template_id"][value=""]').checked = true;
                 document.querySelector('input[name="template_id"][value=""]').closest('.template-option').classList.add('selected');
+                currentStep = 1;
+                showStep(currentStep);
             }
         }
         
@@ -2106,6 +2504,328 @@ $recent_drafts = $recent_stmt->fetchAll();
             // Show confirmation
             if (!confirm('Are you sure you want to create this draft?')) {
                 e.preventDefault();
+            }
+        });
+        
+        // WORKING STEPS FUNCTIONALITY
+        let currentStep = 1;
+        const totalSteps = 5;
+        
+        function showStep(step) {
+            // Hide all step content
+            document.querySelectorAll('.step-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Show current step content
+            document.querySelector(`.step-content[data-step="${step}"]`).style.display = 'block';
+            
+            // Update steps indicator
+            document.querySelectorAll('.step').forEach((stepEl, index) => {
+                stepEl.classList.remove('active', 'completed');
+                if (index + 1 < step) {
+                    stepEl.classList.add('completed');
+                } else if (index + 1 === step) {
+                    stepEl.classList.add('active');
+                }
+            });
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').style.display = step === 1 ? 'none' : 'block';
+            document.getElementById('nextBtn').style.display = step === totalSteps ? 'none' : 'block';
+            document.getElementById('submitBtn').style.display = step === totalSteps ? 'block' : 'none';
+            
+            // Update progress
+            updateProgress();
+            
+            // Update review summary on last step
+            if (step === totalSteps) {
+                updateReviewSummary();
+            }
+        }
+        
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    showStep(currentStep);
+                }
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+        
+        function validateStep(step) {
+            switch(step) {
+                case 1:
+                    // Document type is always valid (has default)
+                    return true;
+                    
+                case 2:
+                    const title = document.getElementById('title').value.trim();
+                    const description = document.getElementById('description').value.trim();
+                    
+                    if (!title) {
+                        alert('Please enter a document title.');
+                        return false;
+                    }
+                    
+                    if (!description) {
+                        alert('Please enter a document description.');
+                        return false;
+                    }
+                    
+                    return true;
+                    
+                case 3:
+                    const content = quill.getText().trim();
+                    
+                    if (!content) {
+                        alert('Please enter document content.');
+                        return false;
+                    }
+                    
+                    return true;
+                    
+                case 4:
+                    // Authors and files are optional
+                    return true;
+                    
+                case 5:
+                    return true;
+                    
+                default:
+                    return true;
+            }
+        }
+        
+        function updateProgress() {
+            let progress = 0;
+            
+            // Calculate progress based on form completion
+            if (document.querySelector('input[name="document_type"]:checked')) progress += 20;
+            
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            if (title) progress += 10;
+            if (description) progress += 10;
+            
+            const content = quill.getText().trim();
+            if (content) progress += 30;
+            
+            const authorsChecked = document.querySelectorAll('input[name="authors[]"]:checked').length;
+            if (authorsChecked > 0) progress += 10;
+            
+            if (uploadedFiles.length > 0) progress += 10;
+            
+            // Ensure max 100%
+            progress = Math.min(progress, 100);
+            
+            // Update progress bar
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressPercent').textContent = progress + '%';
+            
+            // Update current step display
+            document.getElementById('currentStepDisplay').textContent = currentStep + '/5';
+            
+            // Update document type display
+            const docType = document.querySelector('input[name="document_type"]:checked');
+            document.getElementById('docTypeDisplay').textContent = docType ? (docType.value === 'ordinance' ? 'Ordinance' : 'Resolution') : 'Not selected';
+            
+            // Update authors count
+            document.getElementById('authorsCount').textContent = authorsChecked;
+        }
+        
+        function updateReviewSummary() {
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const content = quill.getText().trim();
+            const docType = document.querySelector('input[name="document_type"]:checked');
+            const authors = document.querySelectorAll('input[name="authors[]"]:checked').length;
+            const files = uploadedFiles.length;
+            
+            let summaryHtml = `
+                <div style="background: var(--off-white); padding: 20px; border-radius: var(--border-radius); border: 1px solid var(--gray-light);">
+                    <h4 style="color: var(--qc-blue); margin-bottom: 15px;">Draft Summary</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 15px;">
+                        <div style="font-weight: 600;">Document Type:</div>
+                        <div>${docType ? (docType.value === 'ordinance' ? 'Ordinance' : 'Resolution') : 'Not selected'}</div>
+                        
+                        <div style="font-weight: 600;">Title:</div>
+                        <div>${title || 'Not entered'}</div>
+                        
+                        <div style="font-weight: 600;">Description:</div>
+                        <div>${description || 'Not entered'}</div>
+                        
+                        <div style="font-weight: 600;">Content Length:</div>
+                        <div>${content.length} characters</div>
+                        
+                        <div style="font-weight: 600;">Authors:</div>
+                        <div>${authors} selected</div>
+                        
+                        <div style="font-weight: 600;">Files:</div>
+                        <div>${files} uploaded</div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--gray-light);">
+                        <p style="color: var(--qc-green); font-weight: 600;">
+                            <i class="fas fa-check-circle"></i> Ready to submit!
+                        </p>
+                        <p style="color: var(--gray); font-size: 0.9rem;">
+                            Click "Create Draft" to submit this document to the drafting system.
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('reviewSummary').innerHTML = summaryHtml;
+        }
+        
+        // Initialize steps functionality
+        document.getElementById('nextBtn').addEventListener('click', nextStep);
+        document.getElementById('prevBtn').addEventListener('click', prevStep);
+        
+        // Step indicator click navigation
+        document.querySelectorAll('.step').forEach(stepEl => {
+            stepEl.addEventListener('click', function() {
+                const step = parseInt(this.getAttribute('data-step'));
+                if (step < currentStep) {
+                    currentStep = step;
+                    showStep(currentStep);
+                } else if (step === currentStep + 1) {
+                    if (validateStep(currentStep)) {
+                        currentStep = step;
+                        showStep(currentStep);
+                    }
+                }
+            });
+        });
+        
+        // Form field change listeners for progress updates
+        document.querySelectorAll('input[name="document_type"]').forEach(input => {
+            input.addEventListener('change', updateProgress);
+        });
+        
+        document.getElementById('title').addEventListener('input', updateProgress);
+        document.getElementById('description').addEventListener('input', updateProgress);
+        document.querySelectorAll('input[name="authors[]"]').forEach(input => {
+            input.addEventListener('change', updateProgress);
+        });
+        
+        // Initialize first step
+        showStep(currentStep);
+        
+        // EDIT DRAFT MODAL FUNCTIONALITY
+        const editDraftModal = document.getElementById('editDraftModal');
+        const modalClose = document.getElementById('modalClose');
+        const modalCancelBtn = document.getElementById('modalCancelBtn');
+        let currentDraftId = null;
+        let currentDraftType = null;
+        
+        // Open modal when edit button is clicked
+        document.querySelectorAll('.edit-draft-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                currentDraftId = this.getAttribute('data-draft-id');
+                currentDraftType = this.getAttribute('data-draft-type');
+                const draftNumber = this.getAttribute('data-draft-number');
+                const draftTitle = this.getAttribute('data-draft-title');
+                const draftStatus = this.getAttribute('data-draft-status');
+                
+                // Load draft info into modal
+                document.getElementById('modalDraftInfo').innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 15px;">
+                        <div style="font-weight: 600;">Document Number:</div>
+                        <div>${draftNumber}</div>
+                        
+                        <div style="font-weight: 600;">Title:</div>
+                        <div>${draftTitle}</div>
+                        
+                        <div style="font-weight: 600;">Type:</div>
+                        <div>${currentDraftType === 'ordinance' ? 'Ordinance' : 'Resolution'}</div>
+                        
+                        <div style="font-weight: 600;">Status:</div>
+                        <div>
+                            <span class="draft-status status-${draftStatus}">
+                                ${draftStatus.charAt(0).toUpperCase() + draftStatus.slice(1)}
+                            </span>
+                        </div>
+                        
+                        <div style="font-weight: 600;">Last Modified:</div>
+                        <div>Just now</div>
+                    </div>
+                `;
+                
+                // Load activity log (simulated)
+                document.getElementById('modalActivityLog').innerHTML = `
+                    <div style="font-size: 0.9rem;">
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--gray-light);">
+                            <i class="fas fa-user-edit" style="color: var(--qc-gold);"></i>
+                            <div>
+                                <div>You created this draft</div>
+                                <div style="color: var(--gray); font-size: 0.85rem;">Just now</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px;">
+                            <i class="fas fa-save" style="color: var(--qc-blue);"></i>
+                            <div>
+                                <div>Draft saved automatically</div>
+                                <div style="color: var(--gray); font-size: 0.85rem;">A few moments ago</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Open modal
+                editDraftModal.classList.add('active');
+            });
+        });
+        
+        // Close modal
+        modalClose.addEventListener('click', closeModal);
+        modalCancelBtn.addEventListener('click', closeModal);
+        editDraftModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        function closeModal() {
+            editDraftModal.classList.remove('active');
+        }
+        
+        // Modal action buttons
+        document.getElementById('modalViewBtn').addEventListener('click', function() {
+            if (currentDraftId && currentDraftType) {
+                window.location.href = `edit_draft.php?type=${currentDraftType}&id=${currentDraftId}`;
+            }
+        });
+        
+        document.getElementById('modalUpdateBtn').addEventListener('click', function() {
+            alert('Update feature coming soon!');
+        });
+        
+        document.getElementById('modalVersionBtn').addEventListener('click', function() {
+            alert('Version history feature coming soon!');
+        });
+        
+        document.getElementById('modalDeleteBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
+                alert('Draft deleted successfully!');
+                closeModal();
+                // In a real application, you would redirect or reload the page
+                window.location.reload();
+            }
+        });
+        
+        document.getElementById('modalContinueBtn').addEventListener('click', function() {
+            if (currentDraftId && currentDraftType) {
+                window.location.href = `edit_draft.php?type=${currentDraftType}&id=${currentDraftId}`;
             }
         });
         
