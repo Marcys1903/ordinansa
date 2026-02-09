@@ -3,6 +3,9 @@
 $role = $_SESSION['role'];
 $userName = $_SESSION['firstname'] . ' ' . $_SESSION['lastname'];
 $department = $_SESSION['department'] ?? 'Quezon City Government';
+
+// Get current page
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
     
@@ -17,35 +20,35 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             
             <!-- Module 1: Ordinance & Resolution Creation -->
             <div class="nav-module">
-                <div class="module-header" data-module="module1">
+                <div class="module-header <?php echo (in_array($current_page, ['creation.php', 'draft_creation.php', 'templates.php', 'authors.php', 'documents.php', 'registration.php'])) ? 'active' : ''; ?>" data-module="module1">
                     <i class="fas fa-file-contract"></i>
                     <span>Creation & Drafting</span>
                     <i class="fas fa-chevron-down module-toggle"></i>
                 </div>
-                <div class="module-content" id="module1">
+                <div class="module-content <?php echo (in_array($current_page, ['creation.php', 'draft_creation.php', 'templates.php', 'authors.php', 'documents.php', 'registration.php'])) ? 'active' : ''; ?>" id="module1">
                     <?php if (in_array($role, ['super_admin', 'admin', 'councilor'])): ?>
-                    <a href="creation.php" class="nav-link">
+                    <a href="creation.php" class="nav-link <?php echo ($current_page == 'creation.php') ? 'active' : ''; ?>">
                         <i class="fas fa-pen-fancy"></i>
                         <span>Ordinance & Resolution Creation</span>
                     </a>
                     <div class="submodule-links">
-                        <a href="draft_creation.php" class="submodule-link">
+                        <a href="draft_creation.php" class="submodule-link <?php echo ($current_page == 'draft_creation.php') ? 'active' : ''; ?>">
                             <i class="fas fa-edit"></i>
                             <span>Draft Creation</span>
                         </a>
-                        <a href="templates.php" class="submodule-link">
+                        <a href="templates.php" class="submodule-link <?php echo ($current_page == 'templates.php') ? 'active' : ''; ?>">
                             <i class="fas fa-file-alt"></i>
                             <span>Template Selection</span>
                         </a>
-                        <a href="authors.php" class="submodule-link">
+                        <a href="authors.php" class="submodule-link <?php echo ($current_page == 'authors.php') ? 'active' : ''; ?>">
                             <i class="fas fa-user-edit"></i>
                             <span>Author Assignment</span>
                         </a>
-                        <a href="documents.php" class="submodule-link">
+                        <a href="documents.php" class="submodule-link <?php echo ($current_page == 'documents.php') ? 'active' : ''; ?>">
                             <i class="fas fa-paperclip"></i>
                             <span>Supporting Documents</span>
                         </a>
-                        <a href="registration.php" class="submodule-link">
+                        <a href="registration.php" class="submodule-link <?php echo ($current_page == 'registration.php') ? 'active' : ''; ?>">
                             <i class="fas fa-registered"></i>
                             <span>Draft Registration</span>
                         </a>
@@ -56,35 +59,35 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             
             <!-- Module 2: Classification & Organization -->
             <div class="nav-module">
-                <div class="module-header" data-module="module2">
+                <div class="module-header <?php echo (in_array($current_page, ['classification.php', 'type_identification.php', 'categorization.php', 'priority.php', 'numbering.php', 'tagging.php'])) ? 'active' : ''; ?>" data-module="module2">
                     <i class="fas fa-tags"></i>
                     <span>Classification & Organization</span>
                     <i class="fas fa-chevron-down module-toggle"></i>
                 </div>
-                <div class="module-content" id="module2">
+                <div class="module-content <?php echo (in_array($current_page, ['classification.php', 'type_identification.php', 'categorization.php', 'priority.php', 'numbering.php', 'tagging.php'])) ? 'active' : ''; ?>" id="module2">
                     <?php if (in_array($role, ['super_admin', 'admin'])): ?>
-                    <a href="classification.php" class="nav-link">
+                    <a href="classification.php" class="nav-link <?php echo ($current_page == 'classification.php') ? 'active' : ''; ?>">
                         <i class="fas fa-sitemap"></i>
                         <span>Classification Dashboard</span>
                     </a>
                     <div class="submodule-links">
-                        <a href="type_identification.php" class="submodule-link">
+                        <a href="type_identification.php" class="submodule-link <?php echo ($current_page == 'type_identification.php') ? 'active' : ''; ?>">
                             <i class="fas fa-fingerprint"></i>
                             <span>Type Identification</span>
                         </a>
-                        <a href="categorization.php" class="submodule-link">
+                        <a href="categorization.php" class="submodule-link <?php echo ($current_page == 'categorization.php') ? 'active' : ''; ?>">
                             <i class="fas fa-folder"></i>
                             <span>Subject Categorization</span>
                         </a>
-                        <a href="priority.php" class="submodule-link">
+                        <a href="priority.php" class="submodule-link <?php echo ($current_page == 'priority.php') ? 'active' : ''; ?>">
                             <i class="fas fa-flag"></i>
                             <span>Priority Setting</span>
                         </a>
-                        <a href="numbering.php" class="submodule-link">
+                        <a href="numbering.php" class="submodule-link <?php echo ($current_page == 'numbering.php') ? 'active' : ''; ?>">
                             <i class="fas fa-hashtag"></i>
                             <span>Reference Numbering</span>
                         </a>
-                        <a href="tagging.php" class="submodule-link">
+                        <a href="tagging.php" class="submodule-link <?php echo ($current_page == 'tagging.php') ? 'active' : ''; ?>">
                             <i class="fas fa-tag"></i>
                             <span>Keyword Tagging</span>
                         </a>
@@ -95,35 +98,35 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             
             <!-- Module 3: Status Tracking -->
             <div class="nav-module">
-                <div class="module-header" data-module="module3">
+                <div class="module-header <?php echo (in_array($current_page, ['tracking.php', 'status_updates.php', 'timeline.php', 'action_history.php', 'notifications.php', 'progress_reports.php'])) ? 'active' : ''; ?>" data-module="module3">
                     <i class="fas fa-chart-line"></i>
                     <span>Status Tracking</span>
                     <i class="fas fa-chevron-down module-toggle"></i>
                 </div>
-                <div class="module-content" id="module3">
+                <div class="module-content <?php echo (in_array($current_page, ['tracking.php', 'status_updates.php', 'timeline.php', 'action_history.php', 'notifications.php', 'progress_reports.php'])) ? 'active' : ''; ?>" id="module3">
                     <?php if (in_array($role, ['super_admin', 'admin', 'councilor'])): ?>
-                    <a href="tracking.php" class="nav-link">
+                    <a href="tracking.php" class="nav-link <?php echo ($current_page == 'tracking.php') ? 'active' : ''; ?>">
                         <i class="fas fa-binoculars"></i>
                         <span>Tracking Dashboard</span>
                     </a>
                     <div class="submodule-links">
-                        <a href="status_updates.php" class="submodule-link">
+                        <a href="status_updates.php" class="submodule-link <?php echo ($current_page == 'status_updates.php') ? 'active' : ''; ?>">
                             <i class="fas fa-sync-alt"></i>
                             <span>Status Updates</span>
                         </a>
-                        <a href="timeline.php" class="submodule-link">
+                        <a href="timeline.php" class="submodule-link <?php echo ($current_page == 'timeline.php') ? 'active' : ''; ?>">
                             <i class="fas fa-stream"></i>
                             <span>Timeline Tracking</span>
                         </a>
-                        <a href="action_history.php" class="submodule-link">
+                        <a href="action_history.php" class="submodule-link <?php echo ($current_page == 'action_history.php') ? 'active' : ''; ?>">
                             <i class="fas fa-history"></i>
                             <span>Action History</span>
                         </a>
-                        <a href="notifications.php" class="submodule-link">
+                        <a href="notifications.php" class="submodule-link <?php echo ($current_page == 'notifications.php') ? 'active' : ''; ?>">
                             <i class="fas fa-bell"></i>
                             <span>Notification Alerts</span>
                         </a>
-                        <a href="progress_reports.php" class="submodule-link">
+                        <a href="progress_reports.php" class="submodule-link <?php echo ($current_page == 'progress_reports.php') ? 'active' : ''; ?>">
                             <i class="fas fa-chart-pie"></i>
                             <span>Progress Summary</span>
                         </a>
@@ -134,35 +137,35 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             
             <!-- Module 4: Amendment Management -->
             <div class="nav-module">
-                <div class="module-header" data-module="module4">
+                <div class="module-header <?php echo (in_array($current_page, ['amendments.php', 'amendment_submission.php', 'comparison.php', 'approval_control.php', 'version_storage.php', 'version_recovery.php'])) ? 'active' : ''; ?>" data-module="module4">
                     <i class="fas fa-edit"></i>
                     <span>Amendment Management</span>
                     <i class="fas fa-chevron-down module-toggle"></i>
                 </div>
-                <div class="module-content" id="module4">
+                <div class="module-content <?php echo (in_array($current_page, ['amendments.php', 'amendment_submission.php', 'comparison.php', 'approval_control.php', 'version_storage.php', 'version_recovery.php'])) ? 'active' : ''; ?>" id="module4">
                     <?php if (in_array($role, ['super_admin', 'admin', 'councilor'])): ?>
-                    <a href="amendments.php" class="nav-link">
+                    <a href="amendments.php" class="nav-link <?php echo ($current_page == 'amendments.php') ? 'active' : ''; ?>">
                         <i class="fas fa-file-medical-alt"></i>
                         <span>Amendments Dashboard</span>
                     </a>
                     <div class="submodule-links">
-                        <a href="amendment_submission.php" class="submodule-link">
+                        <a href="amendment_submission.php" class="submodule-link <?php echo ($current_page == 'amendment_submission.php') ? 'active' : ''; ?>">
                             <i class="fas fa-upload"></i>
                             <span>Amendment Submission</span>
                         </a>
-                        <a href="comparison.php" class="submodule-link">
+                        <a href="comparison.php" class="submodule-link <?php echo ($current_page == 'comparison.php') ? 'active' : ''; ?>">
                             <i class="fas fa-code-branch"></i>
                             <span>Change Comparison</span>
                         </a>
-                        <a href="approval_control.php" class="submodule-link">
+                        <a href="approval_control.php" class="submodule-link <?php echo ($current_page == 'approval_control.php') ? 'active' : ''; ?>">
                             <i class="fas fa-check-double"></i>
                             <span>Approval Control</span>
                         </a>
-                        <a href="version_storage.php" class="submodule-link">
+                        <a href="version_storage.php" class="submodule-link <?php echo ($current_page == 'version_storage.php') ? 'active' : ''; ?>">
                             <i class="fas fa-box-archive"></i>
                             <span>Version Storage</span>
                         </a>
-                        <a href="version_recovery.php" class="submodule-link">
+                        <a href="version_recovery.php" class="submodule-link <?php echo ($current_page == 'version_recovery.php') ? 'active' : ''; ?>">
                             <i class="fas fa-undo"></i>
                             <span>Version Recovery</span>
                         </a>
@@ -173,31 +176,31 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             
             <!-- Module 5: Approval & Enactment -->
             <div class="nav-module">
-                <div class="module-header" data-module="module5">
+                <div class="module-header <?php echo (in_array($current_page, ['approval.php', 'voting_results.php', 'final_approval.php', 'effectivity_dates.php', 'archiving.php'])) ? 'active' : ''; ?>" data-module="module5">
                     <i class="fas fa-gavel"></i>
                     <span>Approval & Enactment</span>
                     <i class="fas fa-chevron-down module-toggle"></i>
                 </div>
-                <div class="module-content" id="module5">
+                <div class="module-content <?php echo (in_array($current_page, ['approval.php', 'voting_results.php', 'final_approval.php', 'effectivity_dates.php', 'archiving.php'])) ? 'active' : ''; ?>" id="module5">
                     <?php if (in_array($role, ['super_admin', 'admin'])): ?>
-                    <a href="approval.php" class="nav-link">
+                    <a href="approval.php" class="nav-link <?php echo ($current_page == 'approval.php') ? 'active' : ''; ?>">
                         <i class="fas fa-stamp"></i>
                         <span>Approval Dashboard</span>
                     </a>
                     <div class="submodule-links">
-                        <a href="voting_results.php" class="submodule-link">
+                        <a href="voting_results.php" class="submodule-link <?php echo ($current_page == 'voting_results.php') ? 'active' : ''; ?>">
                             <i class="fas fa-vote-yea"></i>
                             <span>Voting Results</span>
                         </a>
-                        <a href="final_approval.php" class="submodule-link">
+                        <a href="final_approval.php" class="submodule-link <?php echo ($current_page == 'final_approval.php') ? 'active' : ''; ?>">
                             <i class="fas fa-check-circle"></i>
                             <span>Final Approval</span>
                         </a>
-                        <a href="effectivity_dates.php" class="submodule-link">
+                        <a href="effectivity_dates.php" class="submodule-link <?php echo ($current_page == 'effectivity_dates.php') ? 'active' : ''; ?>">
                             <i class="fas fa-calendar-check"></i>
                             <span>Effectivity Date</span>
                         </a>
-                        <a href="archiving.php" class="submodule-link">
+                        <a href="archiving.php" class="submodule-link <?php echo ($current_page == 'archiving.php') ? 'active' : ''; ?>">
                             <i class="fas fa-archive"></i>
                             <span>Final Archiving</span>
                         </a>
@@ -224,61 +227,61 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             
             <?php if ($role === 'super_admin'): ?>
             <div class="admin-tools">
-                <a href="system_settings.php" class="admin-link">
+                <a href="system_settings.php" class="admin-link <?php echo ($current_page == 'system_settings.php') ? 'active' : ''; ?>">
                     <i class="fas fa-cogs"></i>
                     <span>System Settings</span>
                 </a>
-                <a href="user_management.php" class="admin-link">
+                <a href="user_management.php" class="admin-link <?php echo ($current_page == 'user_management.php') ? 'active' : ''; ?>">
                     <i class="fas fa-users-cog"></i>
                     <span>User Management</span>
                 </a>
-                <a href="audit_logs.php" class="admin-link">
+                <a href="audit_logs.php" class="admin-link <?php echo ($current_page == 'audit_logs.php') ? 'active' : ''; ?>">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Audit Logs</span>
                 </a>
-                <a href="backup.php" class="admin-link">
+                <a href="backup.php" class="admin-link <?php echo ($current_page == 'backup.php') ? 'active' : ''; ?>">
                     <i class="fas fa-database"></i>
                     <span>System Backup</span>
                 </a>
-                <a href="security_center.php" class="admin-link">
+                <a href="security_center.php" class="admin-link <?php echo ($current_page == 'security_center.php') ? 'active' : ''; ?>">
                     <i class="fas fa-lock"></i>
                     <span>Security Center</span>
                 </a>
             </div>
             <?php elseif ($role === 'admin'): ?>
             <div class="admin-tools">
-                <a href="document_management.php" class="admin-link">
+                <a href="document_management.php" class="admin-link <?php echo ($current_page == 'document_management.php') ? 'active' : ''; ?>">
                     <i class="fas fa-folder-open"></i>
                     <span>Document Management</span>
                 </a>
-                <a href="report_generation.php" class="admin-link">
+                <a href="report_generation.php" class="admin-link <?php echo ($current_page == 'report_generation.php') ? 'active' : ''; ?>">
                     <i class="fas fa-chart-bar"></i>
                     <span>Report Generation</span>
                 </a>
-                <a href="calendar.php" class="admin-link">
+                <a href="calendar.php" class="admin-link <?php echo ($current_page == 'calendar.php') ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-alt"></i>
                     <span>Legislative Calendar</span>
                 </a>
-                <a href="committee_management.php" class="admin-link">
+                <a href="committee_management.php" class="admin-link <?php echo ($current_page == 'committee_management.php') ? 'active' : ''; ?>">
                     <i class="fas fa-users"></i>
                     <span>Committee Management</span>
                 </a>
             </div>
             <?php elseif ($role === 'councilor'): ?>
             <div class="councilor-tools">
-                <a href="my_documents.php" class="councilor-link">
+                <a href="my_documents.php" class="councilor-link <?php echo ($current_page == 'my_documents.php') ? 'active' : ''; ?>">
                     <i class="fas fa-file-signature"></i>
                     <span>My Documents</span>
                 </a>
-                <a href="voting_records.php" class="councilor-link">
+                <a href="voting_records.php" class="councilor-link <?php echo ($current_page == 'voting_records.php') ? 'active' : ''; ?>">
                     <i class="fas fa-vote-yea"></i>
                     <span>Voting Records</span>
                 </a>
-                <a href="constituent_reports.php" class="councilor-link">
+                <a href="constituent_reports.php" class="councilor-link <?php echo ($current_page == 'constituent_reports.php') ? 'active' : ''; ?>">
                     <i class="fas fa-users"></i>
                     <span>Constituent Reports</span>
                 </a>
-                <a href="legislative_portfolio.php" class="councilor-link">
+                <a href="legislative_portfolio.php" class="councilor-link <?php echo ($current_page == 'legislative_portfolio.php') ? 'active' : ''; ?>">
                     <i class="fas fa-briefcase"></i>
                     <span>Legislative Portfolio</span>
                 </a>
@@ -294,19 +297,19 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
             </div>
             
             <div class="quick-nav">
-                <a href="<?php echo $role . '.php'; ?>" class="quick-nav-link dashboard">
+                <a href="<?php echo $role . '.php'; ?>" class="quick-nav-link dashboard <?php echo ($current_page == $role . '.php') ? 'active' : ''; ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard Home</span>
                 </a>
-                <a href="search.php" class="quick-nav-link search">
+                <a href="search.php" class="quick-nav-link search <?php echo ($current_page == 'search.php') ? 'active' : ''; ?>">
                     <i class="fas fa-search"></i>
                     <span>Advanced Search</span>
                 </a>
-                <a href="reports.php" class="quick-nav-link reports">
+                <a href="reports.php" class="quick-nav-link reports <?php echo ($current_page == 'reports.php') ? 'active' : ''; ?>">
                     <i class="fas fa-file-export"></i>
                     <span>Quick Reports</span>
                 </a>
-                <a href="help.php" class="quick-nav-link help">
+                <a href="help.php" class="quick-nav-link help <?php echo ($current_page == 'help.php') ? 'active' : ''; ?>">
                     <i class="fas fa-question-circle"></i>
                     <span>Help & Support</span>
                 </a>
@@ -455,6 +458,11 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
         background: rgba(212, 175, 55, 0.1);
     }
     
+    .module-header.active {
+        background: rgba(212, 175, 55, 0.15);
+        border-left: 3px solid var(--qc-gold);
+    }
+    
     .module-header i:first-child {
         color: var(--qc-gold);
         font-size: 1.1rem;
@@ -505,6 +513,7 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
         background: rgba(212, 175, 55, 0.15);
         color: var(--white);
         border-left-color: var(--qc-gold);
+        font-weight: bold;
     }
     
     .nav-link i {
@@ -536,6 +545,13 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
         background: rgba(255, 255, 255, 0.05);
         color: var(--white);
         transform: translateX(5px);
+    }
+    
+    .submodule-link.active {
+        background: rgba(212, 175, 55, 0.15);
+        color: var(--qc-gold);
+        font-weight: bold;
+        border-left: 2px solid var(--qc-gold);
     }
     
     .submodule-link i {
@@ -576,6 +592,14 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
         border-color: rgba(212, 175, 55, 0.3);
     }
     
+    .admin-link.active,
+    .councilor-link.active {
+        background: rgba(212, 175, 55, 0.15);
+        color: var(--white);
+        border-color: rgba(212, 175, 55, 0.3);
+        font-weight: bold;
+    }
+    
     .admin-link i,
     .councilor-link i {
         color: var(--qc-gold);
@@ -610,6 +634,12 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
         transform: translateY(-3px);
         background: rgba(212, 175, 55, 0.15);
         border-color: rgba(212, 175, 55, 0.3);
+    }
+    
+    .quick-nav-link.active {
+        background: rgba(212, 175, 55, 0.15);
+        border-color: rgba(212, 175, 55, 0.3);
+        font-weight: bold;
     }
     
     .quick-nav-link i {
@@ -679,6 +709,19 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
 <script>
     // Module Toggle Functionality
     document.addEventListener('DOMContentLoaded', function() {
+        // Auto-expand active module on page load
+        const activeModules = document.querySelectorAll('.module-header.active');
+        activeModules.forEach(header => {
+            const moduleId = header.getAttribute('data-module');
+            const moduleContent = document.getElementById(moduleId);
+            const toggleIcon = header.querySelector('.module-toggle');
+            
+            if (moduleContent) {
+                moduleContent.classList.add('active');
+                toggleIcon.style.transform = 'rotate(180deg)';
+            }
+        });
+        
         // Module toggle functionality
         const moduleHeaders = document.querySelectorAll('.module-header');
         moduleHeaders.forEach(header => {
@@ -692,36 +735,6 @@ $department = $_SESSION['department'] ?? 'Quezon City Government';
                 toggleIcon.style.transform = this.classList.contains('active') ? 'rotate(180deg)' : 'rotate(0deg)';
             });
         });
-        
-        // Highlight active link
-        const currentPage = window.location.pathname.split('/').pop();
-        const allLinks = document.querySelectorAll('.nav-link, .submodule-link, .admin-link, .councilor-link, .quick-nav-link');
-        
-        allLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPage) {
-                link.classList.add('active');
-            }
-        });
-        
-        // Auto-expand module if current page is within it
-        function expandActiveModule() {
-            const activeLink = document.querySelector('.nav-link.active, .submodule-link.active');
-            if (activeLink) {
-                // Find parent module and expand it
-                let moduleContent = activeLink.closest('.module-content');
-                if (moduleContent) {
-                    moduleContent.classList.add('active');
-                    const moduleId = moduleContent.id;
-                    const moduleHeader = document.querySelector(`[data-module="${moduleId}"]`);
-                    if (moduleHeader) {
-                        moduleHeader.classList.add('active');
-                        moduleHeader.querySelector('.module-toggle').style.transform = 'rotate(180deg)';
-                    }
-                }
-            }
-        }
-        
-        expandActiveModule();
         
         // Mobile sidebar toggle
         const mobileToggle = document.createElement('button');
