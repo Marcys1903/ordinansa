@@ -27,10 +27,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
                 <div class="module-content <?php echo (in_array($current_page, ['creation.php', 'draft_creation.php', 'templates.php', 'authors.php', 'documents.php', 'registration.php'])) ? 'active' : ''; ?>" id="module1">
                     <?php if (in_array($role, ['super_admin', 'admin', 'councilor'])): ?>
-                    <a href="creation.php" class="nav-link <?php echo ($current_page == 'creation.php') ? 'active' : ''; ?>">
-                        <i class="fas fa-pen-fancy"></i>
-                        <span>Ordinance & Resolution Creation</span>
-                    </a>
+                    
                     <div class="submodule-links">
                         <a href="draft_creation.php" class="submodule-link <?php echo ($current_page == 'draft_creation.php') ? 'active' : ''; ?>">
                             <i class="fas fa-edit"></i>
