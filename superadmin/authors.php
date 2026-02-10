@@ -240,8 +240,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_assign'])) {
                 $author_query = "INSERT INTO document_authors (document_id, document_type, user_id, role, assigned_by) 
                                VALUES (:doc_id, :doc_type, :author_id, 'author', :assigned_by)";
                 $stmt = $conn->prepare($author_query);
-                $stmt->bindParam(':doc_id', $doc_id);
-                $stmt->bindParam(':doc_type', $doc_type);
+                $stmt->bindParam(':doc_id', $document_id);
+                $stmt->bindParam(':doc_type', $document_type);
                 $stmt->bindParam(':author_id', $author_id);
                 $stmt->bindParam(':assigned_by', $user_id);
                 $stmt->execute();
@@ -3006,9 +3006,13 @@ if (isset($_GET['action']) && $_GET['action'] == 'get_assignments' && isset($_GE
             }
         }
         
-        // Form validation
+        // Form validation - FIXED VERSION
         document.getElementById('authorAssignmentForm').addEventListener('submit', function(e) {
-            if (!documentIdInput.value || !documentTypeInput.value) {
+            // Get the hidden inputs from THIS form
+            const docId = document.getElementById('documentIdInput').value;
+            const docType = document.getElementById('documentTypeInput').value;
+            
+            if (!docId || !docType) {
                 e.preventDefault();
                 alert('Please select a document first.');
                 return;
@@ -3037,8 +3041,13 @@ if (isset($_GET['action']) && $_GET['action'] == 'get_assignments' && isset($_GE
             }
         });
         
+        // FIXED: Committee form validation
         document.getElementById('committeeAssignmentForm').addEventListener('submit', function(e) {
-            if (!committeeDocumentIdInput.value || !committeeDocumentTypeInput.value) {
+            // Get the hidden inputs from THIS form
+            const docId = document.getElementById('committeeDocumentIdInput').value;
+            const docType = document.getElementById('committeeDocumentTypeInput').value;
+            
+            if (!docId || !docType) {
                 e.preventDefault();
                 alert('Please select a document first.');
                 return;

@@ -446,7 +446,17 @@ function generateResolutionPDF($template, $pdf_dir, $conn) {
 $document_type_filter = $_GET['type'] ?? 'all';
 $category_filter = $_GET['category'] ?? 'all';
 $sort_by = $_GET['sort'] ?? 'popular';
+$search_query = $_GET['search'] ?? '';
 
+// Pagination variables
+$templates_per_page = 4;
+$current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$offset = ($current_page - 1) * $templates_per_page;
+
+// Build base query for counting total templates
+$count_query = "SELECT COUNT(*) as total FROM document_templates t WHERE t.is_active = 1";
+
+// Build base query for fetching templates
 $query = "SELECT t.*, 
           CONCAT(u.first_name, ' ', u.last_name) as creator_name,
           COALESCE(fav_count.favorite_count, 0) as favorite_count,
@@ -465,12 +475,30 @@ $query = "SELECT t.*,
           ) user_fav ON t.id = user_fav.template_id
           WHERE t.is_active = 1";
 
+// Add filters to both queries
+$params = [':user_id' => $user_id];
+$count_params = [];
+
 if ($document_type_filter !== 'all') {
     $query .= " AND t.template_type = :doc_type";
+    $count_query .= " AND t.template_type = :doc_type";
+    $params[':doc_type'] = $document_type_filter;
+    $count_params[':doc_type'] = $document_type_filter;
 }
 
 if ($category_filter !== 'all') {
     $query .= " AND t.category = :category";
+    $count_query .= " AND t.category = :category";
+    $params[':category'] = $category_filter;
+    $count_params[':category'] = $category_filter;
+}
+
+if ($search_query) {
+    $query .= " AND (t.template_name LIKE :search OR t.description LIKE :search OR t.category LIKE :search)";
+    $count_query .= " AND (t.template_name LIKE :search OR t.description LIKE :search OR t.category LIKE :search)";
+    $search_param = "%{$search_query}%";
+    $params[':search'] = $search_param;
+    $count_params[':search'] = $search_param;
 }
 
 // Add sorting
@@ -490,21 +518,29 @@ switch ($sort_by) {
         break;
 }
 
+// Add pagination to main query
+$query .= " LIMIT :limit OFFSET :offset";
+
+// Get total count
+$count_stmt = $conn->prepare($count_query);
+foreach ($count_params as $key => $value) {
+    $count_stmt->bindParam($key, $value);
+}
+$count_stmt->execute();
+$total_templates = $count_stmt->fetchColumn();
+$total_pages = ceil($total_templates / $templates_per_page);
+
+// Get paginated templates
 $stmt = $conn->prepare($query);
-$stmt->bindParam(':user_id', $user_id);
-
-if ($document_type_filter !== 'all') {
-    $stmt->bindParam(':doc_type', $document_type_filter);
+foreach ($params as $key => $value) {
+    $stmt->bindParam($key, $value);
 }
-
-if ($category_filter !== 'all') {
-    $stmt->bindParam(':category', $category_filter);
-}
-
+$stmt->bindParam(':limit', $templates_per_page, PDO::PARAM_INT);
+$stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $templates = $stmt->fetchAll();
 
-// Get user's favorite templates
+// Get user's favorite templates (without pagination)
 $favorites_query = "SELECT t.*, 
                     COALESCE(fc.favorite_count, 0) as favorite_count 
                     FROM document_templates t
@@ -515,7 +551,8 @@ $favorites_query = "SELECT t.*,
                         GROUP BY template_id
                     ) fc ON t.id = fc.template_id
                     WHERE f.user_id = :user_id AND t.is_active = 1
-                    ORDER BY f.created_at DESC";
+                    ORDER BY f.created_at DESC
+                    LIMIT 4";
 $favorites_stmt = $conn->prepare($favorites_query);
 $favorites_stmt->bindParam(':user_id', $user_id);
 $favorites_stmt->execute();
@@ -1266,6 +1303,73 @@ $user_stats = $user_stats_stmt->fetch();
             line-height: 1.6;
         }
         
+        /* PAGINATION STYLES */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 40px;
+            padding: 20px;
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--gray-light);
+        }
+        
+        .pagination-info {
+            margin-right: 20px;
+            color: var(--gray-dark);
+            font-weight: 500;
+        }
+        
+        .pagination {
+            display: flex;
+            gap: 10px;
+            list-style: none;
+        }
+        
+        .pagination-item {
+            display: inline-block;
+        }
+        
+        .pagination-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--border-radius);
+            background: var(--white);
+            color: var(--qc-blue);
+            text-decoration: none;
+            font-weight: 600;
+            border: 1px solid var(--gray-light);
+            transition: all 0.3s ease;
+        }
+        
+        .pagination-link:hover {
+            background: var(--qc-blue);
+            color: var(--white);
+            border-color: var(--qc-blue);
+        }
+        
+        .pagination-link.active {
+            background: var(--qc-blue);
+            color: var(--white);
+            border-color: var(--qc-blue);
+        }
+        
+        .pagination-link.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination-link.disabled:hover {
+            background: var(--white);
+            color: var(--qc-blue);
+            border-color: var(--gray-light);
+        }
+        
         /* MODAL STYLES */
         .modal-overlay {
             display: none;
@@ -1662,6 +1766,16 @@ $user_stats = $user_stats_stmt->fetch();
                 text-align: center;
                 gap: 15px;
             }
+            
+            .pagination-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .pagination-info {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
         }
         
         @media (max-width: 768px) {
@@ -1931,6 +2045,7 @@ $user_stats = $user_stats_stmt->fetch();
             <!-- Filters and Controls -->
             <div class="controls-container fade-in">
                 <form method="GET" id="filterForm">
+                    <input type="hidden" name="page" value="1">
                     <div class="controls-grid">
                         <div class="control-group">
                             <label class="control-label">Document Type</label>
@@ -1968,13 +2083,13 @@ $user_stats = $user_stats_stmt->fetch();
                             <label class="control-label">Search Templates</label>
                             <input type="text" name="search" class="search-input" 
                                    placeholder="Search by template name or description..." 
-                                   value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
+                                   value="<?php echo htmlspecialchars($search_query); ?>">
                             <i class="fas fa-search search-icon"></i>
                         </div>
                     </div>
                     
                     <div class="quick-actions">
-                        <a href="?type=all&category=all&sort=popular" class="btn btn-secondary">
+                        <a href="?type=all&category=all&sort=popular&page=1" class="btn btn-secondary">
                             <i class="fas fa-redo"></i> Reset Filters
                         </a>
                         
@@ -2005,7 +2120,7 @@ $user_stats = $user_stats_stmt->fetch();
                         contact an administrator to add new templates.
                         <?php endif; ?>
                     </p>
-                    <a href="?type=all&category=all&sort=popular" class="btn btn-primary">
+                    <a href="?type=all&category=all&sort=popular&page=1" class="btn btn-primary">
                         <i class="fas fa-redo"></i> Show All Templates
                     </a>
                 </div>
@@ -2112,6 +2227,61 @@ $user_stats = $user_stats_stmt->fetch();
                     </div>
                     <?php endforeach; ?>
                 </div>
+                
+                <!-- Pagination -->
+                <?php if ($total_pages > 1): ?>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Showing <?php echo ($offset + 1); ?> - <?php echo min($offset + count($templates), $total_templates); ?> of <?php echo $total_templates; ?> templates
+                    </div>
+                    
+                    <ul class="pagination">
+                        <!-- Previous Button -->
+                        <li class="pagination-item">
+                            <?php if ($current_page > 1): ?>
+                            <a href="?type=<?php echo $document_type_filter; ?>&category=<?php echo $category_filter; ?>&sort=<?php echo $sort_by; ?>&search=<?php echo urlencode($search_query); ?>&page=<?php echo $current_page - 1; ?>" 
+                               class="pagination-link">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <?php else: ?>
+                            <span class="pagination-link disabled">
+                                <i class="fas fa-chevron-left"></i>
+                            </span>
+                            <?php endif; ?>
+                        </li>
+                        
+                        <!-- Page Numbers -->
+                        <?php 
+                        $start_page = max(1, $current_page - 2);
+                        $end_page = min($total_pages, $current_page + 2);
+                        
+                        for ($i = $start_page; $i <= $end_page; $i++): 
+                        ?>
+                        <li class="pagination-item">
+                            <a href="?type=<?php echo $document_type_filter; ?>&category=<?php echo $category_filter; ?>&sort=<?php echo $sort_by; ?>&search=<?php echo urlencode($search_query); ?>&page=<?php echo $i; ?>" 
+                               class="pagination-link <?php echo $i == $current_page ? 'active' : ''; ?>">
+                                <?php echo $i; ?>
+                            </a>
+                        </li>
+                        <?php endfor; ?>
+                        
+                        <!-- Next Button -->
+                        <li class="pagination-item">
+                            <?php if ($current_page < $total_pages): ?>
+                            <a href="?type=<?php echo $document_type_filter; ?>&category=<?php echo $category_filter; ?>&sort=<?php echo $sort_by; ?>&search=<?php echo urlencode($search_query); ?>&page=<?php echo $current_page + 1; ?>" 
+                               class="pagination-link">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            <?php else: ?>
+                            <span class="pagination-link disabled">
+                                <i class="fas fa-chevron-right"></i>
+                            </span>
+                            <?php endif; ?>
+                        </li>
+                    </ul>
+                </div>
+                <?php endif; ?>
+                
                 <?php endif; ?>
             </div>
         </main>

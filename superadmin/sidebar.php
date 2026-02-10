@@ -63,10 +63,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
                 <div class="module-content <?php echo (in_array($current_page, ['classification.php', 'type_identification.php', 'categorization.php', 'priority.php', 'numbering.php', 'tagging.php'])) ? 'active' : ''; ?>" id="module2">
                     <?php if (in_array($role, ['super_admin', 'admin'])): ?>
-                    <a href="classification.php" class="nav-link <?php echo ($current_page == 'classification.php') ? 'active' : ''; ?>">
-                        <i class="fas fa-sitemap"></i>
-                        <span>Classification Dashboard</span>
-                    </a>
+                   
                     <div class="submodule-links">
                         <a href="type_identification.php" class="submodule-link <?php echo ($current_page == 'type_identification.php') ? 'active' : ''; ?>">
                             <i class="fas fa-fingerprint"></i>
@@ -102,10 +99,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
                 <div class="module-content <?php echo (in_array($current_page, ['tracking.php', 'status_updates.php', 'timeline.php', 'action_history.php', 'notifications.php', 'progress_reports.php'])) ? 'active' : ''; ?>" id="module3">
                     <?php if (in_array($role, ['super_admin', 'admin', 'councilor'])): ?>
-                    <a href="tracking.php" class="nav-link <?php echo ($current_page == 'tracking.php') ? 'active' : ''; ?>">
-                        <i class="fas fa-binoculars"></i>
-                        <span>Tracking Dashboard</span>
-                    </a>
+                   
                     <div class="submodule-links">
                         <a href="status_updates.php" class="submodule-link <?php echo ($current_page == 'status_updates.php') ? 'active' : ''; ?>">
                             <i class="fas fa-sync-alt"></i>
@@ -141,10 +135,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
                 <div class="module-content <?php echo (in_array($current_page, ['amendments.php', 'amendment_submission.php', 'comparison.php', 'approval_control.php', 'version_storage.php', 'version_recovery.php'])) ? 'active' : ''; ?>" id="module4">
                     <?php if (in_array($role, ['super_admin', 'admin', 'councilor'])): ?>
-                    <a href="amendments.php" class="nav-link <?php echo ($current_page == 'amendments.php') ? 'active' : ''; ?>">
-                        <i class="fas fa-file-medical-alt"></i>
-                        <span>Amendments Dashboard</span>
-                    </a>
+                   
                     <div class="submodule-links">
                         <a href="amendment_submission.php" class="submodule-link <?php echo ($current_page == 'amendment_submission.php') ? 'active' : ''; ?>">
                             <i class="fas fa-upload"></i>
@@ -180,10 +171,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
                 <div class="module-content <?php echo (in_array($current_page, ['approval.php', 'voting_results.php', 'final_approval.php', 'effectivity_dates.php', 'archiving.php'])) ? 'active' : ''; ?>" id="module5">
                     <?php if (in_array($role, ['super_admin', 'admin'])): ?>
-                    <a href="approval.php" class="nav-link <?php echo ($current_page == 'approval.php') ? 'active' : ''; ?>">
-                        <i class="fas fa-stamp"></i>
-                        <span>Approval Dashboard</span>
-                    </a>
+                    
                     <div class="submodule-links">
                         <a href="voting_results.php" class="submodule-link <?php echo ($current_page == 'voting_results.php') ? 'active' : ''; ?>">
                             <i class="fas fa-vote-yea"></i>

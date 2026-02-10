@@ -1,5 +1,5 @@
 <?php
-// draft_creation.php - Draft Creation Module
+// amendment_submission.php - Amendment Submission Module
 session_start();
 
 // Check if user is logged in
@@ -8,7 +8,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit();
 }
 
-// Check if user has permission to create drafts
+// Check if user has permission to submit amendments
 if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['super_admin', 'admin', 'councilor'])) {
     header("Location: ../unauthorized.php");
     exit();
@@ -36,114 +36,133 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $conn->beginTransaction();
         
+        $document_id = $_POST['document_id'];
         $document_type = $_POST['document_type'];
         $title = $_POST['title'];
-        $description = $_POST['description'] ?? '';
-        $content = $_POST['content'] ?? '';
-        $template_id = $_POST['template_id'] ?? null;
+        $description = $_POST['description'];
+        $proposed_changes = $_POST['proposed_changes'];
+        $justification = $_POST['justification'];
+        $current_version_id = $_POST['current_version_id'];
+        $priority = $_POST['priority'] ?? 'medium';
         $authors = $_POST['authors'] ?? [];
+        $committee_review = isset($_POST['committee_review']) ? 1 : 0;
+        $committee_id = $_POST['committee_id'] ?? null;
+        $public_hearing = isset($_POST['public_hearing']) ? 1 : 0;
+        $public_hearing_date = $_POST['public_hearing_date'] ?? null;
         
-        // Generate document number
-        $prefix = ($document_type === 'ordinance') ? 'ORD' : 'RES';
+        // Generate amendment number
+        $prefix = "QC-AMEND";
         $year = date('Y');
         $month = date('m');
         
-        // Get next sequence number for this document type
-        $sequence_query = "SELECT COUNT(*) + 1 as next_num FROM " . 
-                         ($document_type === 'ordinance' ? 'ordinances' : 'resolutions') . 
-                         " WHERE YEAR(created_at) = :year";
+        // Get next sequence number
+        $sequence_query = "SELECT COUNT(*) + 1 as next_num FROM amendment_submissions WHERE YEAR(created_at) = :year";
         $stmt = $conn->prepare($sequence_query);
         $stmt->bindParam(':year', $year);
         $stmt->execute();
         $result = $stmt->fetch();
-        $sequence = str_pad($result['next_num'], 3, '0', STR_PAD_LEFT);
+        $sequence = str_pad($result['next_num'], 4, '0', STR_PAD_LEFT);
         
-        $document_number = "QC-{$prefix}-{$year}-{$month}-{$sequence}";
+        $amendment_number = "$prefix-$year-$month-$sequence";
         
-        if ($document_type === 'ordinance') {
-            // Insert into ordinances table
-            $query = "INSERT INTO ordinances (ordinance_number, title, description, status, created_by, created_at, updated_at) 
-                     VALUES (:doc_number, :title, :description, 'draft', :created_by, NOW(), NOW())";
-            $stmt = $conn->prepare($query);
-            $stmt->bindParam(':doc_number', $document_number);
-            $stmt->bindParam(':title', $title);
-            $stmt->bindParam(':description', $description);
-            $stmt->bindParam(':created_by', $user_id);
-            $stmt->execute();
-            
-            $document_id = $conn->lastInsertId();
-            
-            // Create initial version
-            $version_query = "INSERT INTO document_versions (document_id, document_type, version_number, title, content, created_by, is_current) 
-                            VALUES (:doc_id, 'ordinance', 1, :title, :content, :created_by, 1)";
-            $stmt = $conn->prepare($version_query);
-            $stmt->bindParam(':doc_id', $document_id);
-            $stmt->bindParam(':title', $title);
-            $stmt->bindParam(':content', $content);
-            $stmt->bindParam(':created_by', $user_id);
-            $stmt->execute();
-            
-        } else {
-            // Insert into resolutions table
-            $query = "INSERT INTO resolutions (resolution_number, title, description, status, created_by, created_at, updated_at) 
-                     VALUES (:doc_number, :title, :description, 'draft', :created_by, NOW(), NOW())";
-            $stmt = $conn->prepare($query);
-            $stmt->bindParam(':doc_number', $document_number);
-            $stmt->bindParam(':title', $title);
-            $stmt->bindParam(':description', $description);
-            $stmt->bindParam(':created_by', $user_id);
-            $stmt->execute();
-            
-            $document_id = $conn->lastInsertId();
-            
-            // Create initial version
-            $version_query = "INSERT INTO document_versions (document_id, document_type, version_number, title, content, created_by, is_current) 
-                            VALUES (:doc_id, 'resolution', 1, :title, :content, :created_by, 1)";
-            $stmt = $conn->prepare($version_query);
-            $stmt->bindParam(':doc_id', $document_id);
-            $stmt->bindParam(':title', $title);
-            $stmt->bindParam(':content', $content);
-            $stmt->bindParam(':created_by', $user_id);
-            $stmt->execute();
-        }
+        // Insert amendment submission
+        $query = "INSERT INTO amendment_submissions 
+                 (document_id, document_type, amendment_number, title, description, 
+                  proposed_changes, justification, current_version_id, priority, 
+                  submitted_by, submitted_at, requires_committee_review, committee_id,
+                  public_hearing_required, public_hearing_date, status) 
+                 VALUES 
+                 (:doc_id, :doc_type, :amendment_no, :title, :description, 
+                  :changes, :justification, :version_id, :priority, 
+                  :submitted_by, NOW(), :committee_review, :committee_id,
+                  :public_hearing, :public_hearing_date, 'pending')";
         
-        // Assign authors (always include current user)
-        $author_ids = array_unique(array_merge($authors, [$user_id]));
-        foreach ($author_ids as $author_id) {
-            $author_query = "INSERT INTO document_authors (document_id, document_type, user_id, role, assigned_by) 
-                           VALUES (:doc_id, :doc_type, :author_id, 'author', :assigned_by)";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':doc_id', $document_id);
+        $stmt->bindParam(':doc_type', $document_type);
+        $stmt->bindParam(':amendment_no', $amendment_number);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':description', $description);
+        $stmt->bindParam(':changes', $proposed_changes);
+        $stmt->bindParam(':justification', $justification);
+        $stmt->bindParam(':version_id', $current_version_id);
+        $stmt->bindParam(':priority', $priority);
+        $stmt->bindParam(':submitted_by', $user_id);
+        $stmt->bindParam(':committee_review', $committee_review);
+        $stmt->bindParam(':committee_id', $committee_id);
+        $stmt->bindParam(':public_hearing', $public_hearing);
+        $stmt->bindParam(':public_hearing_date', $public_hearing_date);
+        $stmt->execute();
+        
+        $amendment_id = $conn->lastInsertId();
+        
+        // Create proposed version
+        $version_query = "INSERT INTO document_versions (document_id, document_type, version_number, title, content, created_by, is_current) 
+                         SELECT :doc_id, :doc_type, 
+                                (SELECT MAX(version_number) + 1 FROM document_versions WHERE document_id = :doc_id AND document_type = :doc_type),
+                                :title, :content, :created_by, 0";
+        $stmt = $conn->prepare($version_query);
+        $stmt->bindParam(':doc_id', $document_id);
+        $stmt->bindParam(':doc_type', $document_type);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':content', $proposed_changes);
+        $stmt->bindParam(':created_by', $user_id);
+        $stmt->execute();
+        
+        $proposed_version_id = $conn->lastInsertId();
+        
+        // Update amendment with proposed version ID
+        $update_query = "UPDATE amendment_submissions SET proposed_version_id = :version_id WHERE id = :amendment_id";
+        $stmt = $conn->prepare($update_query);
+        $stmt->bindParam(':version_id', $proposed_version_id);
+        $stmt->bindParam(':amendment_id', $amendment_id);
+        $stmt->execute();
+        
+        // Assign authors
+        foreach ($authors as $author_id) {
+            $author_query = "INSERT INTO amendment_authors (amendment_id, user_id, role, assigned_by) 
+                           VALUES (:amendment_id, :author_id, 'author', :assigned_by)";
             $stmt = $conn->prepare($author_query);
-            $stmt->bindParam(':doc_id', $document_id);
-            $stmt->bindParam(':doc_type', $document_type);
+            $stmt->bindParam(':amendment_id', $amendment_id);
             $stmt->bindParam(':author_id', $author_id);
             $stmt->bindParam(':assigned_by', $user_id);
             $stmt->execute();
         }
         
+        // Auto-add current user as author if not already selected
+        if (!in_array($user_id, $authors)) {
+            $author_query = "INSERT INTO amendment_authors (amendment_id, user_id, role, assigned_by) 
+                           VALUES (:amendment_id, :author_id, 'author', :assigned_by)";
+            $stmt = $conn->prepare($author_query);
+            $stmt->bindParam(':amendment_id', $amendment_id);
+            $stmt->bindParam(':author_id', $user_id);
+            $stmt->bindParam(':assigned_by', $user_id);
+            $stmt->execute();
+        }
+        
         // Handle file uploads
-        if (!empty($_FILES['supporting_docs']['name'][0])) {
-            $upload_dir = '../uploads/supporting_docs/';
+        if (!empty($_FILES['attachments']['name'][0])) {
+            $upload_dir = '../uploads/amendment_docs/';
             if (!is_dir($upload_dir)) {
                 mkdir($upload_dir, 0777, true);
             }
             
-            for ($i = 0; $i < count($_FILES['supporting_docs']['name']); $i++) {
-                if ($_FILES['supporting_docs']['error'][$i] === UPLOAD_ERR_OK) {
-                    $file_name = basename($_FILES['supporting_docs']['name'][$i]);
-                    $file_tmp = $_FILES['supporting_docs']['tmp_name'][$i];
-                    $file_size = $_FILES['supporting_docs']['size'][$i];
-                    $file_type = $_FILES['supporting_docs']['type'][$i];
+            for ($i = 0; $i < count($_FILES['attachments']['name']); $i++) {
+                if ($_FILES['attachments']['error'][$i] === UPLOAD_ERR_OK) {
+                    $file_name = basename($_FILES['attachments']['name'][$i]);
+                    $file_tmp = $_FILES['attachments']['tmp_name'][$i];
+                    $file_size = $_FILES['attachments']['size'][$i];
+                    $file_type = $_FILES['attachments']['type'][$i];
                     
                     // Generate unique filename
                     $unique_name = time() . '_' . uniqid() . '_' . $file_name;
                     $file_path = $upload_dir . $unique_name;
                     
                     if (move_uploaded_file($file_tmp, $file_path)) {
-                        $file_query = "INSERT INTO supporting_documents (document_id, document_type, file_name, file_path, file_type, file_size, uploaded_by) 
-                                     VALUES (:doc_id, :doc_type, :file_name, :file_path, :file_type, :file_size, :uploaded_by)";
+                        $file_query = "INSERT INTO amendment_attachments (amendment_id, file_name, file_path, file_type, file_size, uploaded_by) 
+                                     VALUES (:amendment_id, :file_name, :file_path, :file_type, :file_size, :uploaded_by)";
                         $stmt = $conn->prepare($file_query);
-                        $stmt->bindParam(':doc_id', $document_id);
-                        $stmt->bindParam(':doc_type', $document_type);
+                        $stmt->bindParam(':amendment_id', $amendment_id);
                         $stmt->bindParam(':file_name', $file_name);
                         $stmt->bindParam(':file_path', $file_path);
                         $stmt->bindParam(':file_type', $file_type);
@@ -155,103 +174,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Record template usage if template was used
-        if ($template_id && $template_id != '') {
-            $template_usage_query = "INSERT INTO template_usage (template_id, user_id, document_id, document_type) 
-                                   VALUES (:template_id, :user_id, :document_id, :document_type)";
-            $stmt = $conn->prepare($template_usage_query);
-            $stmt->bindParam(':template_id', $template_id);
-            $stmt->bindParam(':user_id', $user_id);
-            $stmt->bindParam(':document_id', $document_id);
-            $stmt->bindParam(':document_type', $document_type);
-            $stmt->execute();
-            
-            // Update template use count
-            $update_template_query = "UPDATE document_templates SET use_count = use_count + 1, last_used = NOW() WHERE id = :template_id";
-            $stmt = $conn->prepare($update_template_query);
-            $stmt->bindParam(':template_id', $template_id);
-            $stmt->execute();
-        }
+        // Create initial comparison
+        $current_version_query = "SELECT content FROM document_versions WHERE id = :version_id";
+        $stmt = $conn->prepare($current_version_query);
+        $stmt->bindParam(':version_id', $current_version_id);
+        $stmt->execute();
+        $current_version = $stmt->fetch();
+        
+        $comparison_query = "INSERT INTO amendment_comparisons 
+                            (amendment_id, old_text, new_text, change_type, change_description) 
+                            VALUES 
+                            (:amendment_id, :old_text, :new_text, 'modification', 'Initial amendment submission')";
+        $stmt = $conn->prepare($comparison_query);
+        $stmt->bindParam(':amendment_id', $amendment_id);
+        $stmt->bindParam(':old_text', $current_version['content']);
+        $stmt->bindParam(':new_text', $proposed_changes);
+        $stmt->execute();
+        
+        // Log to amendment history
+        $history_query = "INSERT INTO amendment_history (amendment_id, action, description, performed_by) 
+                         VALUES (:amendment_id, 'SUBMITTED', 'Amendment submitted for review', :performed_by)";
+        $stmt = $conn->prepare($history_query);
+        $stmt->bindParam(':amendment_id', $amendment_id);
+        $stmt->bindParam(':performed_by', $user_id);
+        $stmt->execute();
+        
+        // Generate AI analytics (mocked data)
+        $generateMockAnalytics($amendment_id, $conn);
         
         $conn->commit();
         
         // Log the action
         $audit_query = "INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent) 
-                       VALUES (:user_id, 'DRAFT_CREATE', :description, :ip, :agent)";
+                       VALUES (:user_id, 'AMENDMENT_SUBMIT', 'Submitted amendment: {$amendment_number}', :ip, :agent)";
         $stmt = $conn->prepare($audit_query);
-        $description = 'Created new draft: ' . $document_number;
         $stmt->bindParam(':user_id', $user_id);
-        $stmt->bindParam(':description', $description);
         $stmt->bindParam(':ip', $_SERVER['REMOTE_ADDR']);
         $stmt->bindParam(':agent', $_SERVER['HTTP_USER_AGENT']);
         $stmt->execute();
         
-        $success_message = "Draft created successfully! Document Number: {$document_number}";
+        $success_message = "Amendment submitted successfully! Amendment Number: {$amendment_number}";
         
     } catch (PDOException $e) {
         $conn->rollBack();
-        $error_message = "Error creating draft: " . $e->getMessage();
+        $error_message = "Error submitting amendment: " . $e->getMessage();
     }
 }
 
-// Get available templates
-$templates_query = "SELECT * FROM document_templates WHERE is_active = 1 ORDER BY template_name";
-$templates_stmt = $conn->query($templates_query);
-$templates = $templates_stmt->fetchAll();
+// Function to generate mock AI analytics
+function generateMockAnalytics($amendment_id, $conn) {
+    $mock_analytics = [
+        ['success_probability', '85%'],
+        ['review_time_estimate', '7-10 days'],
+        ['similar_amendments', '3 found'],
+        ['legal_compliance', 'High'],
+        ['fiscal_impact', 'Low to Moderate'],
+        ['public_support_probability', '72%'],
+        ['committee_approval_likelihood', 'High'],
+        ['implementation_complexity', 'Medium'],
+        ['risk_level', 'Low'],
+        ['recommended_actions', 'Proceed with committee review']
+    ];
+    
+    foreach ($mock_analytics as $analytic) {
+        $query = "INSERT INTO ai_amendment_analytics (amendment_id, analytics_type, data_key, data_value, confidence_score, generated_by) 
+                 VALUES (:amendment_id, 'amendment_analysis', :data_key, :data_value, :confidence, :generated_by)";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':amendment_id', $amendment_id);
+        $stmt->bindParam(':data_key', $analytic[0]);
+        $stmt->bindParam(':data_value', $analytic[1]);
+        $confidence = mt_rand(70, 95) / 100;
+        $stmt->bindParam(':confidence', $confidence);
+        $stmt->bindParam(':generated_by', $GLOBALS['user_id']);
+        $stmt->execute();
+    }
+}
+
+// Get available documents for amendment
+$documents_query = "(
+    SELECT 'ordinance' as doc_type, id, ordinance_number as doc_number, title, status 
+    FROM ordinances 
+    WHERE status IN ('approved', 'implemented', 'pending')
+    ORDER BY created_at DESC
+) UNION ALL (
+    SELECT 'resolution' as doc_type, id, resolution_number as doc_number, title, status 
+    FROM resolutions 
+    WHERE status IN ('approved', 'pending')
+    ORDER BY created_at DESC
+) ORDER BY doc_type, doc_number DESC LIMIT 50";
+
+$documents_stmt = $conn->query($documents_query);
+$available_documents = $documents_stmt->fetchAll();
 
 // Get available users for author assignment
 $users_query = "SELECT id, first_name, last_name, role, department FROM users 
-                WHERE is_active = 1 
+                WHERE is_active = 1 AND role IN ('councilor', 'admin', 'super_admin')
                 ORDER BY last_name, first_name";
 $users_stmt = $conn->query($users_query);
 $available_users = $users_stmt->fetchAll();
 
-// Get recent drafts for current user with pagination
-$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$limit = 5; // Show 5 drafts per page
-$offset = ($page - 1) * $limit;
+// Get committees
+$committees_query = "SELECT id, committee_name, committee_code FROM committees WHERE is_active = 1 ORDER BY committee_name";
+$committees_stmt = $conn->query($committees_query);
+$committees = $committees_stmt->fetchAll();
 
-// Count total drafts
-$count_query = "SELECT (
-    SELECT COUNT(*) FROM ordinances WHERE created_by = :user_id
-) + (
-    SELECT COUNT(*) FROM resolutions WHERE created_by = :user_id
-) as total_count";
-$count_stmt = $conn->prepare($count_query);
-$count_stmt->bindParam(':user_id', $user_id);
-$count_stmt->execute();
-$total_count_result = $count_stmt->fetch();
-$total_drafts = $total_count_result['total_count'];
-$total_pages = ceil($total_drafts / $limit);
+// Get user's recent amendments
+$recent_amendments_query = "SELECT a.*, 
+                           (SELECT doc_type FROM (
+                               SELECT 'ordinance' as doc_type, id, ordinance_number FROM ordinances 
+                               UNION ALL 
+                               SELECT 'resolution' as doc_type, id, resolution_number FROM resolutions
+                           ) d WHERE d.id = a.document_id) as doc_type,
+                           CASE a.document_type 
+                               WHEN 'ordinance' THEN (SELECT ordinance_number FROM ordinances WHERE id = a.document_id)
+                               WHEN 'resolution' THEN (SELECT resolution_number FROM resolutions WHERE id = a.document_id)
+                           END as doc_number
+                           FROM amendment_submissions a 
+                           WHERE a.submitted_by = :user_id 
+                           ORDER BY a.created_at DESC 
+                           LIMIT 10";
 
-// Get paginated recent drafts
-$recent_drafts_query = "(
-    SELECT 'ordinance' as doc_type, id, ordinance_number as doc_number, title, status, created_at 
-    FROM ordinances 
-    WHERE created_by = :user_id
-    ORDER BY created_at DESC 
-    LIMIT :limit OFFSET :offset
-) UNION ALL (
-    SELECT 'resolution' as doc_type, id, resolution_number as doc_number, title, status, created_at 
-    FROM resolutions 
-    WHERE created_by = :user_id
-    ORDER BY created_at DESC 
-    LIMIT :limit OFFSET :offset
-) ORDER BY created_at DESC LIMIT :limit";
-
-$recent_stmt = $conn->prepare($recent_drafts_query);
+$recent_stmt = $conn->prepare($recent_amendments_query);
 $recent_stmt->bindParam(':user_id', $user_id);
-$recent_stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-$recent_stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
 $recent_stmt->execute();
-$recent_drafts = $recent_stmt->fetchAll();
+$recent_amendments = $recent_stmt->fetchAll();
+
+// Get system-wide amendment statistics
+$stats_query = "SELECT 
+                COUNT(*) as total_amendments,
+                SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+                SUM(CASE WHEN priority = 'urgent' OR priority = 'emergency' THEN 1 ELSE 0 END) as `high_priority`
+                FROM amendment_submissions";
+$stats_stmt = $conn->query($stats_query);
+$system_stats = $stats_stmt->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Draft Creation | QC Ordinance Tracker</title>
+    <title>Amendment Submission | QC Ordinance Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
@@ -263,12 +327,15 @@ $recent_drafts = $recent_stmt->fetchAll();
             --qc-gold-dark: #B8941F;
             --qc-green: #2D8C47;
             --qc-green-dark: #1F6C37;
+            --qc-purple: #6B46C1;
+            --qc-purple-dark: #553C9A;
             --white: #FFFFFF;
             --off-white: #F8F9FA;
             --gray-light: #E9ECEF;
             --gray: #6C757D;
             --gray-dark: #343A40;
             --red: #C53030;
+            --orange: #DD6B20;
             --green: #2D8C47;
             --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
             --shadow-md: 0 4px 8px rgba(0,0,0,0.08);
@@ -294,12 +361,14 @@ $recent_drafts = $recent_stmt->fetchAll();
             flex-direction: column;
         }
         
+        /* MAIN CONTENT WRAPPER */
         .main-wrapper {
             display: flex;
             min-height: calc(100vh - var(--header-height));
             margin-top: var(--header-height);
         }
         
+          /* SIDEBAR STYLES */
         .sidebar {
             width: var(--sidebar-width);
             background: linear-gradient(180deg, var(--qc-blue-dark) 0%, var(--qc-blue) 100%);
@@ -314,7 +383,6 @@ $recent_drafts = $recent_stmt->fetchAll();
             border-right: 3px solid var(--qc-gold);
             transition: transform 0.3s ease;
         }
-        
         .sidebar-content {
             padding: 30px 20px;
             height: 100%;
@@ -368,6 +436,22 @@ $recent_drafts = $recent_stmt->fetchAll();
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--white);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-subtitle {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* MAIN CONTENT AREA */
         .main-content {
             flex: 1;
             margin-left: var(--sidebar-width);
@@ -376,6 +460,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             background: var(--off-white);
         }
         
+        /* GOVERNMENT HEADER STYLE */
         .government-header {
             background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
             color: var(--white);
@@ -554,8 +639,9 @@ $recent_drafts = $recent_stmt->fetchAll();
             color: var(--qc-blue-dark);
         }
         
+        /* FIXED MODULE HEADER - IMPROVED */
         .module-header {
-            background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
+          
             color: var(--white);
             padding: 40px;
             border-radius: var(--border-radius-lg);
@@ -640,8 +726,9 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .module-stats {
-            display: flex;
-            gap: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
             margin-top: 25px;
         }
         
@@ -676,6 +763,132 @@ $recent_drafts = $recent_stmt->fetchAll();
             color: rgba(255, 255, 255, 0.8);
         }
         
+        /* AI ANALYTICS DASHBOARD */
+        .ai-analytics-dashboard {
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            border-radius: var(--border-radius-lg);
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow-xl);
+            border: 2px solid var(--qc-gold);
+        }
+        
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .ai-icon {
+            background: rgba(74, 222, 128, 0.2);
+            border: 2px solid #4ade80;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #4ade80;
+        }
+        
+        .ai-title {
+            flex: 1;
+        }
+        
+        .ai-title h2 {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--white);
+            margin-bottom: 5px;
+        }
+        
+        .ai-title p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.95rem;
+        }
+        
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .analytic-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .analytic-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--qc-gold);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .analytic-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .analytic-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .analytic-title {
+            flex: 1;
+        }
+        
+        .analytic-title h4 {
+            color: var(--white);
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+        
+        .analytic-title span {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+        }
+        
+        .analytic-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--white);
+            margin-bottom: 10px;
+        }
+        
+        .analytic-progress {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .analytic-progress-bar {
+            height: 100%;
+            border-radius: 3px;
+        }
+        
+        .analytic-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* WORKING STEPS INDICATOR */
         .steps-indicator {
             display: flex;
             justify-content: space-between;
@@ -732,10 +945,10 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .step.active .step-number {
-            background: var(--qc-blue);
-            border-color: var(--qc-blue);
+            background: var(--qc-purple);
+            border-color: var(--qc-purple);
             color: var(--white);
-            box-shadow: 0 6px 20px rgba(0, 51, 102, 0.3);
+            box-shadow: 0 6px 20px rgba(107, 70, 193, 0.3);
         }
         
         .step.completed .step-number {
@@ -759,12 +972,26 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .step.active .step-label {
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             font-weight: bold;
             transform: translateY(5px);
         }
         
-        .creation-form-container {
+        .step-description {
+            font-size: 0.85rem;
+            color: var(--gray);
+            text-align: center;
+            max-width: 150px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .step.active .step-description {
+            display: block;
+        }
+        
+        /* FORM STYLES */
+        .amendment-form-container {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 30px;
@@ -772,7 +999,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         @media (max-width: 1200px) {
-            .creation-form-container {
+            .amendment-form-container {
                 grid-template-columns: 1fr;
             }
         }
@@ -810,7 +1037,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             align-items: center;
             gap: 12px;
             margin-bottom: 20px;
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             font-size: 1.2rem;
             font-weight: bold;
         }
@@ -850,8 +1077,17 @@ $recent_drafts = $recent_stmt->fetchAll();
         
         .form-control:focus {
             outline: none;
-            border-color: var(--qc-blue);
-            box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+            border-color: var(--qc-purple);
+            box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
+        }
+        
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 16px;
+            padding-right: 40px;
         }
         
         textarea.form-control {
@@ -859,89 +1095,81 @@ $recent_drafts = $recent_stmt->fetchAll();
             resize: vertical;
         }
         
-        .radio-group {
-            display: flex;
-            gap: 30px;
+        .document-preview {
+            background: var(--off-white);
+            border: 1px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
             margin-top: 10px;
         }
         
-        .radio-option {
+        .document-preview h4 {
+            color: var(--qc-blue);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .document-preview-content {
+            font-size: 0.9rem;
+            color: var(--gray-dark);
+            line-height: 1.6;
+        }
+        
+        .document-preview-content .highlight {
+            background: rgba(212, 175, 55, 0.2);
+            padding: 2px 5px;
+            border-radius: 3px;
+            border: 1px solid var(--qc-gold);
+        }
+        
+        /* Priority Selector */
+        .priority-selector {
             display: flex;
-            align-items: center;
-            gap: 10px;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .priority-option {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .priority-radio {
+            display: none;
+        }
+        
+        .priority-label {
+            display: block;
+            padding: 15px;
+            background: var(--off-white);
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            text-align: center;
             cursor: pointer;
-        }
-        
-        .radio-input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--qc-blue);
-        }
-        
-        .radio-label {
+            transition: all 0.3s ease;
             font-weight: 500;
             color: var(--gray-dark);
         }
         
-        .template-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        
-        .template-option {
-            border: 2px solid var(--gray-light);
-            border-radius: var(--border-radius);
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        .template-option:hover {
-            border-color: var(--qc-blue);
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-md);
-        }
-        
-        .template-option.selected {
-            border-color: var(--qc-gold);
-            background: rgba(212, 175, 55, 0.05);
-        }
-        
-        .template-radio {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            width: 20px;
-            height: 20px;
-            accent-color: var(--qc-gold);
-        }
-        
-        .template-name {
+        .priority-radio:checked + .priority-label {
+            border-color: var(--qc-purple);
+            background: rgba(107, 70, 193, 0.1);
+            color: var(--qc-purple);
             font-weight: bold;
-            color: var(--qc-blue);
-            margin-bottom: 5px;
-            font-size: 1.1rem;
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-sm);
         }
         
-        .template-type {
-            display: inline-block;
-            padding: 3px 10px;
-            background: var(--gray-light);
-            color: var(--gray-dark);
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-        }
+        .priority-low .priority-label { border-left: 4px solid var(--green); }
+        .priority-medium .priority-label { border-left: 4px solid var(--orange); }
+        .priority-high .priority-label { border-left: 4px solid var(--red); }
+        .priority-urgent .priority-label { border-left: 4px solid #9b2c2c; }
+        .priority-emergency .priority-label { border-left: 4px solid #63171b; }
         
-        .template-description {
-            color: var(--gray);
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-        
+        /* Author Selection */
         .author-selection {
             max-height: 300px;
             overflow-y: auto;
@@ -971,14 +1199,14 @@ $recent_drafts = $recent_stmt->fetchAll();
         .author-checkbox {
             width: 20px;
             height: 20px;
-            accent-color: var(--qc-blue);
+            accent-color: var(--qc-purple);
         }
         
         .author-avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
+            background: linear-gradient(135deg, var(--qc-purple) 0%, var(--qc-purple-dark) 100%);
             color: var(--white);
             display: flex;
             align-items: center;
@@ -1007,6 +1235,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             color: var(--gray);
         }
         
+        /* File Upload */
         .file-upload-area {
             border: 2px dashed var(--gray-light);
             border-radius: var(--border-radius);
@@ -1018,7 +1247,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .file-upload-area:hover {
-            border-color: var(--qc-blue);
+            border-color: var(--qc-purple);
             background: var(--off-white);
         }
         
@@ -1029,7 +1258,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         
         .upload-icon {
             font-size: 3rem;
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             margin-bottom: 15px;
         }
         
@@ -1065,7 +1294,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .file-icon {
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             font-size: 1.2rem;
         }
         
@@ -1082,6 +1311,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             font-size: 1.1rem;
         }
         
+        /* Text Editor */
         #editor-container {
             height: 400px;
             margin-top: 10px;
@@ -1102,7 +1332,8 @@ $recent_drafts = $recent_stmt->fetchAll();
             height: calc(100% - 42px);
         }
         
-        .recent-drafts {
+        /* Recent Amendments */
+        .recent-amendments {
             background: var(--white);
             border-radius: var(--border-radius-lg);
             padding: 30px;
@@ -1111,11 +1342,11 @@ $recent_drafts = $recent_stmt->fetchAll();
             margin-bottom: 40px;
         }
         
-        .drafts-list {
+        .amendments-list {
             list-style: none;
         }
         
-        .draft-item {
+        .amendment-item {
             display: flex;
             align-items: center;
             gap: 15px;
@@ -1124,16 +1355,16 @@ $recent_drafts = $recent_stmt->fetchAll();
             transition: all 0.3s ease;
         }
         
-        .draft-item:hover {
+        .amendment-item:hover {
             background: var(--off-white);
             transform: translateX(5px);
         }
         
-        .draft-item:last-child {
+        .amendment-item:last-child {
             border-bottom: none;
         }
         
-        .draft-icon {
+        .amendment-icon {
             width: 50px;
             height: 50px;
             background: var(--off-white);
@@ -1141,34 +1372,34 @@ $recent_drafts = $recent_stmt->fetchAll();
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             font-size: 1.2rem;
         }
         
-        .draft-content {
+        .amendment-content {
             flex: 1;
         }
         
-        .draft-title {
+        .amendment-title {
             font-weight: 600;
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             margin-bottom: 5px;
             font-size: 1rem;
         }
         
-        .draft-meta {
+        .amendment-meta {
             display: flex;
             gap: 15px;
             font-size: 0.85rem;
             color: var(--gray);
         }
         
-        .draft-number {
+        .amendment-number {
             font-weight: 600;
             color: var(--qc-gold);
         }
         
-        .draft-status {
+        .amendment-status {
             padding: 2px 8px;
             border-radius: 20px;
             font-size: 0.75rem;
@@ -1177,44 +1408,11 @@ $recent_drafts = $recent_stmt->fetchAll();
         
         .status-draft { background: #fef3c7; color: #92400e; }
         .status-pending { background: #dbeafe; color: #1e40af; }
+        .status-under_review { background: #e0e7ff; color: #3730a3; }
         .status-approved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
         
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid var(--gray-light);
-        }
-        
-        .pagination-btn {
-            padding: 8px 16px;
-            border: 1px solid var(--qc-blue);
-            background: var(--white);
-            color: var(--qc-blue);
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-        
-        .pagination-btn:hover:not(.disabled) {
-            background: var(--qc-blue);
-            color: var(--white);
-        }
-        
-        .pagination-btn.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .pagination-info {
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-        
+        /* MODAL STYLES */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -1255,7 +1453,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .modal-header {
-            background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
+            background: linear-gradient(135deg, var(--qc-purple) 0%, var(--qc-purple-dark) 100%);
             color: var(--white);
             padding: 25px 30px;
             border-top-left-radius: var(--border-radius-lg);
@@ -1312,7 +1510,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             align-items: center;
             gap: 12px;
             margin-bottom: 20px;
-            color: var(--qc-blue);
+            color: var(--qc-purple);
             font-size: 1.3rem;
             font-weight: bold;
         }
@@ -1330,6 +1528,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             border-top: 1px solid var(--gray-light);
         }
         
+        /* Action Buttons */
         .form-actions {
             display: flex;
             gap: 15px;
@@ -1354,7 +1553,7 @@ $recent_drafts = $recent_stmt->fetchAll();
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
+            background: linear-gradient(135deg, var(--qc-purple) 0%, var(--qc-purple-dark) 100%);
             color: var(--white);
         }
         
@@ -1393,6 +1592,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             box-shadow: var(--shadow-lg);
         }
         
+        /* Alerts */
         .alert {
             padding: 20px;
             border-radius: var(--border-radius);
@@ -1419,8 +1619,9 @@ $recent_drafts = $recent_stmt->fetchAll();
             font-size: 1.5rem;
         }
         
+        /* FOOTER */
         .government-footer {
-            background: linear-gradient(135deg, var(--qc-blue) 0%, var(--qc-blue-dark) 100%);
+            background: linear-gradient(135deg, var(--qc-purple) 0%, var(--qc-purple-dark) 100%);
             color: var(--white);
             padding: 40px 0 20px;
             margin-top: 60px;
@@ -1531,6 +1732,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             font-size: 0.8rem;
         }
         
+        /* ANIMATIONS */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -1549,6 +1751,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             animation: slideIn 0.4s ease-out;
         }
         
+        /* Mobile Responsiveness */
         @media (max-width: 992px) {
             .main-content {
                 margin-left: 0;
@@ -1584,8 +1787,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             }
             
             .module-stats {
-                flex-direction: column;
-                gap: 20px;
+                grid-template-columns: 1fr;
             }
             
             .module-title-wrapper {
@@ -1593,16 +1795,19 @@ $recent_drafts = $recent_stmt->fetchAll();
                 text-align: center;
                 gap: 15px;
             }
+            
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
         }
         
         @media (max-width: 768px) {
-            .radio-group {
+            .priority-selector {
                 flex-direction: column;
-                gap: 15px;
             }
             
-            .template-options {
-                grid-template-columns: 1fr;
+            .priority-option {
+                min-width: 100%;
             }
             
             .form-actions, .modal-actions {
@@ -1636,10 +1841,12 @@ $recent_drafts = $recent_stmt->fetchAll();
             }
         }
         
+        /* Mobile menu toggle button (hidden by default on desktop) */
         .mobile-menu-toggle {
             display: none;
         }
         
+        /* Sidebar overlay for mobile */
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -1653,6 +1860,59 @@ $recent_drafts = $recent_stmt->fetchAll();
         
         .sidebar-overlay.active {
             display: block;
+        }
+        
+        /* Toggle switches */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-light);
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--qc-purple);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -1676,7 +1936,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                 </div>
                 <div class="site-title-container">
                     <h1>QC Ordinance Tracker System</h1>
-                    <p>Draft Creation Module | Ordinance & Resolution Drafting</p>
+                    <p>Amendment Submission Module | Modify Existing Ordinances & Resolutions</p>
                 </div>
             </div>
             
@@ -1710,39 +1970,37 @@ $recent_drafts = $recent_stmt->fetchAll();
     <!-- Main Wrapper -->
     <div class="main-wrapper">
         <!-- Sidebar -->
-       <!-- In the HTML body section, replace the entire sidebar section with this: -->
-
-<!-- Sidebar -->
-<nav class="sidebar" id="sidebar">
-    <div class="sidebar-content">
-        <div class="sidebar-header">
-            <h3 class="sidebar-title">
-                <i class="fas fa-file-contract"></i> Creation Module
-            </h3>
-            <p class="sidebar-subtitle">Draft Creation Interface</p>
-        </div>
-        
-        <?php include 'sidebar.php'; ?>
-    </div>
-</nav>
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h3 class="sidebar-title">
+                        <i class="fas fa-edit"></i> Amendment Module
+                    </h3>
+                    <p class="sidebar-subtitle">Amendment Submission Interface</p>
+                </div>
+                
+                <?php include 'sidebar.php'; ?>
+            </div>
+        </nav>
         
         <!-- Main Content -->
         <main class="main-content">
-            <div class="draft-creation-container">
-                <!-- MODULE HEADER -->
+            <div class="amendment-submission-container">
+                <!-- FIXED MODULE HEADER -->
                 <div class="module-header fade-in">
                     <div class="module-header-content">
-                        <div class="module-badge">DRAFT CREATION MODULE</div>
+                        <div class="module-badge">AMENDMENT SUBMISSION MODULE</div>
                         
                         <div class="module-title-wrapper">
                             <div class="module-icon">
-                                <i class="fas fa-edit"></i>
+                                <i class="fas fa-file-medical-alt"></i>
                             </div>
                             <div class="module-title">
-                                <h1>Create New Draft Document</h1>
+                                <h1>Submit Proposed Amendments</h1>
                                 <p class="module-subtitle">
-                                    Create new ordinance or resolution drafts with standard legal formats. 
-                                    Assign sponsors and authors, upload supporting documents, and register draft records.
+                                    Propose changes to existing ordinances and resolutions. 
+                                    Submit amendments with detailed justifications, track review progress, 
+                                    and manage version control for legislative documents.
                                 </p>
                             </div>
                         </div>
@@ -1750,30 +2008,134 @@ $recent_drafts = $recent_stmt->fetchAll();
                         <div class="module-stats">
                             <div class="stat-item">
                                 <div class="stat-icon">
-                                    <i class="fas fa-file-alt"></i>
+                                    <i class="fas fa-file-contract"></i>
                                 </div>
                                 <div class="stat-info">
-                                    <h3><?php echo $total_drafts; ?></h3>
-                                    <p>Your Drafts</p>
+                                    <h3><?php echo $system_stats['total_amendments'] ?? 0; ?></h3>
+                                    <p>Total Amendments</p>
                                 </div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3><?php echo $system_stats['approved'] ?? 0; ?></h3>
+                                    <p>Approved</p>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3><?php echo $system_stats['pending'] ?? 0; ?></h3>
+                                    <p>Pending Review</p>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3><?php echo $system_stats['high_priority'] ?? 0; ?></h3>
+                                    <p>High Priority</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI ANALYTICS DASHBOARD -->
+                <div class="ai-analytics-dashboard fade-in">
+                    <div class="ai-header">
+                        <div class="ai-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="ai-title">
+                            <h2>AI-Powered Amendment Analytics</h2>
+                            <p>Smart predictions and recommendations for your amendment submission</p>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-grid">
+                        <div class="analytic-card">
+                            <div class="analytic-header">
+                                <div class="analytic-icon" style="background: rgba(74, 222, 128, 0.2); color: #4ade80;">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="analytic-title">
+                                    <h4>Success Probability</h4>
+                                    <span>Based on similar amendments</span>
+                                </div>
+                            </div>
+                            <div class="analytic-value" id="aiSuccessProbability">85%</div>
+                            <div class="analytic-progress">
+                                <div class="analytic-progress-bar" style="width: 85%; background: #4ade80;"></div>
+                            </div>
+                            <div class="analytic-footer">
+                                <span>High chance of approval</span>
+                                <span>85% confident</span>
+                            </div>
+                        </div>
+                        
+                        <div class="analytic-card">
+                            <div class="analytic-header">
+                                <div class="analytic-icon" style="background: rgba(96, 165, 250, 0.2); color: #60a5fa;">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="analytic-title">
+                                    <h4>Review Time Estimate</h4>
+                                    <span>Expected processing time</span>
+                                </div>
+                            </div>
+                            <div class="analytic-value" id="aiReviewTime">7-10 days</div>
+                            <div class="analytic-progress">
+                                <div class="analytic-progress-bar" style="width: 70%; background: #60a5fa;"></div>
+                            </div>
+                            <div class="analytic-footer">
+                                <span>Standard priority</span>
+                                <span>Based on similar cases</span>
+                            </div>
+                        </div>
+                        
+                        <div class="analytic-card">
+                            <div class="analytic-header">
+                                <div class="analytic-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                                    <i class="fas fa-balance-scale"></i>
+                                </div>
+                                <div class="analytic-title">
+                                    <h4>Legal Compliance</h4>
+                                    <span>Constitutional & regulatory check</span>
+                                </div>
+                            </div>
+                            <div class="analytic-value" id="aiLegalCompliance">High</div>
+                            <div class="analytic-progress">
+                                <div class="analytic-progress-bar" style="width: 90%; background: #f59e0b;"></div>
+                            </div>
+                            <div class="analytic-footer">
+                                <span>No conflicts detected</span>
+                                <span>90% compliant</span>
+                            </div>
+                        </div>
+                        
+                        <div class="analytic-card">
+                            <div class="analytic-header">
+                                <div class="analytic-icon" style="background: rgba(168, 85, 247, 0.2); color: #a855f7;">
                                     <i class="fas fa-users"></i>
                                 </div>
-                                <div class="stat-info">
-                                    <h3><?php echo count($available_users); ?></h3>
-                                    <p>Available Authors</p>
+                                <div class="analytic-title">
+                                    <h4>Public Support</h4>
+                                    <span>Estimated community acceptance</span>
                                 </div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-file-alt"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <h3><?php echo count($templates); ?></h3>
-                                    <p>Templates Available</p>
-                                </div>
+                            <div class="analytic-value" id="aiPublicSupport">72%</div>
+                            <div class="analytic-progress">
+                                <div class="analytic-progress-bar" style="width: 72%; background: #a855f7;"></div>
+                            </div>
+                            <div class="analytic-footer">
+                                <span>Based on sentiment analysis</span>
+                                <span>Positive trend</span>
                             </div>
                         </div>
                     </div>
@@ -1783,28 +2145,28 @@ $recent_drafts = $recent_stmt->fetchAll();
                 <div class="steps-indicator fade-in">
                     <div class="step active" data-step="1">
                         <div class="step-number">1</div>
-                        <div class="step-label">Document Type</div>
-                        <div class="step-description">Select ordinance or resolution</div>
+                        <div class="step-label">Select Document</div>
+                        <div class="step-description">Choose ordinance/resolution to amend</div>
                     </div>
                     <div class="step" data-step="2">
                         <div class="step-number">2</div>
-                        <div class="step-label">Template</div>
-                        <div class="step-description">Choose a template or start blank</div>
+                        <div class="step-label">Amendment Details</div>
+                        <div class="step-description">Describe changes and justification</div>
                     </div>
                     <div class="step" data-step="3">
                         <div class="step-number">3</div>
-                        <div class="step-label">Content</div>
-                        <div class="step-description">Write your document content</div>
+                        <div class="step-label">Proposed Changes</div>
+                        <div class="step-description">Write the amended content</div>
                     </div>
                     <div class="step" data-step="4">
                         <div class="step-number">4</div>
-                        <div class="step-label">Authors & Files</div>
-                        <div class="step-description">Assign authors and upload files</div>
+                        <div class="step-label">Authors & Review</div>
+                        <div class="step-description">Assign authors and set review process</div>
                     </div>
                     <div class="step" data-step="5">
                         <div class="step-number">5</div>
                         <div class="step-label">Review & Submit</div>
-                        <div class="step-description">Review and create draft</div>
+                        <div class="step-description">Final review and submission</div>
                     </div>
                 </div>
 
@@ -1823,109 +2185,132 @@ $recent_drafts = $recent_stmt->fetchAll();
                 </div>
                 <?php endif; ?>
 
-                <!-- Creation Form -->
-                <form id="draftCreationForm" method="POST" enctype="multipart/form-data" class="fade-in">
-                    <div class="creation-form-container">
+                <!-- Amendment Submission Form -->
+                <form id="amendmentSubmissionForm" method="POST" enctype="multipart/form-data" class="fade-in">
+                    <div class="amendment-form-container">
                         <!-- Main Form -->
                         <div class="form-main">
-                            <!-- Document Type Selection -->
+                            <!-- Document Selection -->
                             <div class="form-section step-content" data-step="1">
                                 <h3 class="section-title">
                                     <i class="fas fa-file-alt"></i>
-                                    1. Select Document Type
+                                    1. Select Document to Amend
                                 </h3>
                                 
                                 <div class="form-group">
-                                    <label class="form-label required">Document Type</label>
-                                    <div class="radio-group">
-                                        <label class="radio-option">
-                                            <input type="radio" name="document_type" value="ordinance" class="radio-input" required checked>
-                                            <span class="radio-label">
-                                                <i class="fas fa-gavel" style="color: var(--qc-blue);"></i>
-                                                Ordinance
-                                            </span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="document_type" value="resolution" class="radio-input" required>
-                                            <span class="radio-label">
-                                                <i class="fas fa-file-signature" style="color: var(--qc-green);"></i>
-                                                Resolution
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <small class="form-text" style="color: var(--gray); margin-top: 8px; display: block;">
-                                        <strong>Ordinance:</strong> A local law enacted by the Sangguniang Panlungsod<br>
-                                        <strong>Resolution:</strong> A formal expression of opinion, will, or intent
-                                    </small>
+                                    <label for="document_select" class="form-label required">Choose Document</label>
+                                    <select id="document_select" name="document_id" class="form-control" required onchange="loadDocumentDetails(this.value)">
+                                        <option value="">-- Select an Ordinance or Resolution --</option>
+                                        <?php foreach ($available_documents as $doc): 
+                                            $type_text = $doc['doc_type'] === 'ordinance' ? 'Ordinance' : 'Resolution';
+                                        ?>
+                                        <option value="<?php echo $doc['id']; ?>" data-type="<?php echo $doc['doc_type']; ?>">
+                                            <?php echo htmlspecialchars($doc['doc_number'] . ' - ' . $doc['title'] . ' (' . $type_text . ')'); ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="hidden" id="document_type" name="document_type" value="">
+                                    <input type="hidden" id="current_version_id" name="current_version_id" value="">
+                                </div>
+                                
+                                <div class="document-preview" id="documentPreview" style="display: none;">
+                                    <!-- Document preview will be loaded here -->
                                 </div>
                             </div>
 
-                            <!-- Document Details -->
+                            <!-- Amendment Details -->
                             <div class="form-section step-content" data-step="2" style="display: none;">
                                 <h3 class="section-title">
                                     <i class="fas fa-info-circle"></i>
-                                    2. Document Details
+                                    2. Amendment Details
                                 </h3>
                                 
                                 <div class="form-group">
-                                    <label for="title" class="form-label required">Document Title</label>
+                                    <label for="title" class="form-label required">Amendment Title</label>
                                     <input type="text" id="title" name="title" class="form-control" 
-                                           placeholder="Enter the full title of the ordinance or resolution" 
+                                           placeholder="Enter a clear title for this amendment" 
                                            required maxlength="255">
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="description" class="form-label required">Description/Summary</label>
+                                    <label for="description" class="form-label required">Amendment Description</label>
                                     <textarea id="description" name="description" class="form-control" 
-                                              placeholder="Provide a brief summary of what this document aims to accomplish" 
+                                              placeholder="Provide a brief summary of what this amendment aims to change" 
                                               rows="4" required></textarea>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Select Template (Optional)</label>
-                                    <div class="template-options">
-                                        <div class="template-option" onclick="selectTemplate('')">
-                                            <input type="radio" name="template_id" value="" class="template-radio" checked>
-                                            <div class="template-name">Blank Document</div>
-                                            <div class="template-type">No Template</div>
-                                            <div class="template-description">
-                                                Start with a completely blank document
-                                            </div>
+                                    <label for="justification" class="form-label required">Justification</label>
+                                    <textarea id="justification" name="justification" class="form-control" 
+                                              placeholder="Explain why this amendment is necessary and what problem it solves" 
+                                              rows="4" required></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required">Priority Level</label>
+                                    <div class="priority-selector">
+                                        <div class="priority-option priority-low">
+                                            <input type="radio" name="priority" value="low" id="priority_low" class="priority-radio" checked>
+                                            <label for="priority_low" class="priority-label">
+                                                <i class="fas fa-arrow-down"></i> Low Priority
+                                            </label>
                                         </div>
-                                        
-                                        <?php foreach ($templates as $template): ?>
-                                        <div class="template-option" onclick="selectTemplate(<?php echo $template['id']; ?>)">
-                                            <input type="radio" name="template_id" value="<?php echo $template['id']; ?>" class="template-radio">
-                                            <div class="template-name"><?php echo htmlspecialchars($template['template_name']); ?></div>
-                                            <div class="template-type"><?php echo ucfirst($template['template_type']); ?></div>
-                                            <div class="template-description">
-                                                <?php echo htmlspecialchars($template['description']); ?>
-                                            </div>
+                                        <div class="priority-option priority-medium">
+                                            <input type="radio" name="priority" value="medium" id="priority_medium" class="priority-radio">
+                                            <label for="priority_medium" class="priority-label">
+                                                <i class="fas fa-equals"></i> Medium Priority
+                                            </label>
                                         </div>
-                                        <?php endforeach; ?>
+                                        <div class="priority-option priority-high">
+                                            <input type="radio" name="priority" value="high" id="priority_high" class="priority-radio">
+                                            <label for="priority_high" class="priority-label">
+                                                <i class="fas fa-arrow-up"></i> High Priority
+                                            </label>
+                                        </div>
+                                        <div class="priority-option priority-urgent">
+                                            <input type="radio" name="priority" value="urgent" id="priority_urgent" class="priority-radio">
+                                            <label for="priority_urgent" class="priority-label">
+                                                <i class="fas fa-exclamation"></i> Urgent
+                                            </label>
+                                        </div>
+                                        <div class="priority-option priority-emergency">
+                                            <input type="radio" name="priority" value="emergency" id="priority_emergency" class="priority-radio">
+                                            <label for="priority_emergency" class="priority-label">
+                                                <i class="fas fa-skull-crossbones"></i> Emergency
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Content Editor -->
+                            <!-- Proposed Changes -->
                             <div class="form-section step-content" data-step="3" style="display: none;">
                                 <h3 class="section-title">
                                     <i class="fas fa-edit"></i>
-                                    3. Document Content
+                                    3. Proposed Changes
                                 </h3>
                                 
                                 <div class="form-group">
-                                    <label class="form-label required">Document Content</label>
+                                    <label class="form-label required">Proposed Amended Content</label>
                                     <div id="editor-container"></div>
-                                    <textarea id="content" name="content" style="display: none;" required></textarea>
+                                    <textarea id="proposed_changes" name="proposed_changes" style="display: none;" required></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Change Summary</label>
+                                    <div style="background: var(--off-white); padding: 15px; border-radius: var(--border-radius); border: 1px solid var(--gray-light);">
+                                        <div id="changeSummary">
+                                            <p style="color: var(--gray); font-style: italic;">Proposed changes will be analyzed here...</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Authors and Files -->
+                            <!-- Authors and Review Process -->
                             <div class="form-section step-content" data-step="4" style="display: none;">
                                 <h3 class="section-title">
                                     <i class="fas fa-user-edit"></i>
-                                    4. Authors and Supporting Documents
+                                    4. Authors and Review Process
                                 </h3>
                                 
                                 <div class="form-group">
@@ -1956,7 +2341,44 @@ $recent_drafts = $recent_stmt->fetchAll();
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Upload Supporting Files</label>
+                                    <label class="form-label">Review Process Settings</label>
+                                    
+                                    <div class="toggle-label">
+                                        <span>Require Committee Review</span>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="committee_review" id="committee_review">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    
+                                    <div id="committeeSelection" style="display: none; margin-top: 15px;">
+                                        <label for="committee_id" class="form-label">Select Committee</label>
+                                        <select id="committee_id" name="committee_id" class="form-control">
+                                            <option value="">-- Select a Committee --</option>
+                                            <?php foreach ($committees as $committee): ?>
+                                            <option value="<?php echo $committee['id']; ?>">
+                                                <?php echo htmlspecialchars($committee['committee_name'] . ' (' . $committee['committee_code'] . ')'); ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="toggle-label" style="margin-top: 15px;">
+                                        <span>Require Public Hearing</span>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="public_hearing" id="public_hearing">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    
+                                    <div id="hearingDateSelection" style="display: none; margin-top: 15px;">
+                                        <label for="public_hearing_date" class="form-label">Proposed Hearing Date</label>
+                                        <input type="date" id="public_hearing_date" name="public_hearing_date" class="form-control">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Upload Supporting Documents</label>
                                     <div class="file-upload-area" id="fileUploadArea">
                                         <i class="fas fa-cloud-upload-alt upload-icon"></i>
                                         <div class="upload-text">Drag & drop files here</div>
@@ -1964,7 +2386,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                                         <div class="btn btn-secondary">
                                             <i class="fas fa-folder-open"></i> Browse Files
                                         </div>
-                                        <input type="file" name="supporting_docs[]" id="fileInput" 
+                                        <input type="file" name="attachments[]" id="fileInput" 
                                                class="file-input-hidden" multiple 
                                                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
                                     </div>
@@ -1990,8 +2412,15 @@ $recent_drafts = $recent_stmt->fetchAll();
                                 <div class="form-group">
                                     <label class="form-label">Additional Notes (Optional)</label>
                                     <textarea id="notes" name="notes" class="form-control" 
-                                              placeholder="Any additional notes or instructions for this draft..." 
+                                              placeholder="Any additional notes or instructions for this amendment..." 
                                               rows="3"></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" id="confirm_understanding" required>
+                                        <span>I confirm that I have reviewed all amendment details and understand that this submission will undergo the official review process.</span>
+                                    </label>
                                 </div>
                             </div>
 
@@ -2004,7 +2433,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                                     Next Step <i class="fas fa-arrow-right"></i>
                                 </button>
                                 <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
-                                    <i class="fas fa-check"></i> Create Draft
+                                    <i class="fas fa-check"></i> Submit Amendment
                                 </button>
                             </div>
                         </div>
@@ -2025,11 +2454,11 @@ $recent_drafts = $recent_stmt->fetchAll();
                                     <button type="button" class="btn btn-secondary" onclick="clearForm()">
                                         <i class="fas fa-eraser"></i> Clear Form
                                     </button>
-                                    <button type="button" class="btn btn-secondary" onclick="previewDocument()">
-                                        <i class="fas fa-eye"></i> Preview
+                                    <button type="button" class="btn btn-secondary" onclick="compareVersions()">
+                                        <i class="fas fa-code-branch"></i> Compare
                                     </button>
-                                    <a href="templates.php" class="btn btn-secondary">
-                                        <i class="fas fa-file-alt"></i> Manage Templates
+                                    <a href="amendments.php" class="btn btn-secondary">
+                                        <i class="fas fa-list"></i> View All Amendments
                                     </a>
                                 </div>
                             </div>
@@ -2058,8 +2487,12 @@ $recent_drafts = $recent_stmt->fetchAll();
                                             <strong id="currentStepDisplay">1/5</strong>
                                         </div>
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                            <span>Document Type:</span>
-                                            <span id="docTypeDisplay">Ordinance</span>
+                                            <span>Document Selected:</span>
+                                            <span id="docSelectedDisplay">None</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>Priority Level:</span>
+                                            <span id="priorityDisplay">Low</span>
                                         </div>
                                         <div style="display: flex; justify-content: space-between;">
                                             <span>Authors Selected:</span>
@@ -2069,122 +2502,100 @@ $recent_drafts = $recent_stmt->fetchAll();
                                 </div>
                             </div>
 
-                            <!-- Help Section -->
+                            <!-- Amendment Guidelines -->
                             <div class="form-section">
                                 <h3 class="section-title">
-                                    <i class="fas fa-question-circle"></i>
-                                    Need Help?
+                                    <i class="fas fa-book"></i>
+                                    Amendment Guidelines
                                 </h3>
                                 
                                 <div style="font-size: 0.9rem; color: var(--gray);">
-                                    <p style="margin-bottom: 10px;">For assistance with:</p>
+                                    <p style="margin-bottom: 10px;">Ensure your amendment:</p>
                                     <ul style="padding-left: 20px; margin-bottom: 15px;">
-                                        <li>Document formats</li>
-                                        <li>Template selection</li>
-                                        <li>Author assignment</li>
-                                        <li>File uploads</li>
+                                        <li>Clearly states what changes are proposed</li>
+                                        <li>Includes proper justification</li>
+                                        <li>Follows legal formatting standards</li>
+                                        <li>Has all required supporting documents</li>
+                                        <li>Assigns appropriate authors/sponsors</li>
                                     </ul>
-                                    <p>Contact the <strong>Council Secretariat</strong> at extension 1234 or email <strong>secretariat@qc.gov.ph</strong></p>
+                                    <p>For assistance, contact the <strong>Legislative Services Division</strong> at extension 5678.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </form>
 
-                <!-- Recent Drafts with Pagination -->
-                <div class="recent-drafts fade-in">
+                <!-- Recent Amendments -->
+                <div class="recent-amendments fade-in">
                     <div class="section-title">
                         <i class="fas fa-history"></i>
-                        <h2>Your Recent Drafts</h2>
+                        <h2>Your Recent Amendments</h2>
                     </div>
                     
-                    <?php if (empty($recent_drafts)): ?>
+                    <?php if (empty($recent_amendments)): ?>
                     <div style="text-align: center; padding: 40px 20px; color: var(--gray);">
                         <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 15px; color: var(--gray-light);"></i>
-                        <h3 style="color: var(--gray-dark); margin-bottom: 10px;">No Drafts Found</h3>
-                        <p>You haven't created any drafts yet. Start by creating your first draft above.</p>
+                        <h3 style="color: var(--gray-dark); margin-bottom: 10px;">No Amendments Found</h3>
+                        <p>You haven't submitted any amendments yet. Start by submitting your first amendment above.</p>
                     </div>
                     <?php else: ?>
-                    <ul class="drafts-list">
-                        <?php foreach ($recent_drafts as $draft): 
-                            $status_class = 'status-' . $draft['status'];
-                            $icon = $draft['doc_type'] === 'ordinance' ? 'fa-gavel' : 'fa-file-signature';
-                            $type_color = $draft['doc_type'] === 'ordinance' ? 'var(--qc-blue)' : 'var(--qc-green)';
+                    <ul class="amendments-list">
+                        <?php foreach ($recent_amendments as $amendment): 
+                            $status_class = 'status-' . $amendment['status'];
+                            $type_text = $amendment['doc_type'] === 'ordinance' ? 'Ordinance' : 'Resolution';
                         ?>
-                        <li class="draft-item">
-                            <div class="draft-icon" style="color: <?php echo $type_color; ?>;">
-                                <i class="fas <?php echo $icon; ?>"></i>
+                        <li class="amendment-item">
+                            <div class="amendment-icon">
+                                <i class="fas fa-file-medical-alt"></i>
                             </div>
-                            <div class="draft-content">
-                                <div class="draft-title"><?php echo htmlspecialchars($draft['title']); ?></div>
-                                <div class="draft-meta">
-                                    <span class="draft-number"><?php echo htmlspecialchars($draft['doc_number']); ?></span>
-                                    <span class="draft-status <?php echo $status_class; ?>">
-                                        <?php echo ucfirst($draft['status']); ?>
+                            <div class="amendment-content">
+                                <div class="amendment-title"><?php echo htmlspecialchars($amendment['title']); ?></div>
+                                <div class="amendment-meta">
+                                    <span class="amendment-number"><?php echo htmlspecialchars($amendment['amendment_number']); ?></span>
+                                    <span>to <?php echo htmlspecialchars($amendment['doc_number'] ?? 'N/A'); ?></span>
+                                    <span class="amendment-status <?php echo $status_class; ?>">
+                                        <?php echo ucfirst(str_replace('_', ' ', $amendment['status'])); ?>
                                     </span>
-                                    <span><?php echo date('M d, Y', strtotime($draft['created_at'])); ?></span>
+                                    <span><?php echo date('M d, Y', strtotime($amendment['created_at'])); ?></span>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-secondary edit-draft-btn" 
-                                    data-draft-id="<?php echo $draft['id']; ?>"
-                                    data-draft-type="<?php echo $draft['doc_type']; ?>"
-                                    data-draft-number="<?php echo htmlspecialchars($draft['doc_number']); ?>"
-                                    data-draft-title="<?php echo htmlspecialchars($draft['title']); ?>"
-                                    data-draft-status="<?php echo $draft['status']; ?>">
-                                <i class="fas fa-edit"></i> Edit
+                            <button type="button" class="btn btn-secondary edit-amendment-btn" 
+                                    data-amendment-id="<?php echo $amendment['id']; ?>"
+                                    data-amendment-number="<?php echo htmlspecialchars($amendment['amendment_number']); ?>"
+                                    data-amendment-title="<?php echo htmlspecialchars($amendment['title']); ?>"
+                                    data-amendment-status="<?php echo $amendment['status']; ?>">
+                                <i class="fas fa-eye"></i> View
                             </button>
                         </li>
                         <?php endforeach; ?>
                     </ul>
-                    
-                    <!-- Pagination -->
-                    <?php if ($total_pages > 1): ?>
-                    <div class="pagination">
-                        <button class="pagination-btn <?php echo $page <= 1 ? 'disabled' : ''; ?>" 
-                                onclick="window.location.href='?page=<?php echo $page - 1; ?>'" 
-                                <?php echo $page <= 1 ? 'disabled' : ''; ?>>
-                            <i class="fas fa-chevron-left"></i> Previous
-                        </button>
-                        
-                        <span class="pagination-info">
-                            Page <?php echo $page; ?> of <?php echo $total_pages; ?> 
-                            (Total: <?php echo $total_drafts; ?> drafts)
-                        </span>
-                        
-                        <button class="pagination-btn <?php echo $page >= $total_pages ? 'disabled' : ''; ?>" 
-                                onclick="window.location.href='?page=<?php echo $page + 1; ?>'" 
-                                <?php echo $page >= $total_pages ? 'disabled' : ''; ?>>
-                            Next <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                    <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- EDIT DRAFT MODAL -->
-    <div class="modal-overlay" id="editDraftModal">
+    <!-- AMENDMENT DETAILS MODAL -->
+    <div class="modal-overlay" id="amendmentDetailsModal">
         <div class="modal">
             <div class="modal-header">
-                <h2><i class="fas fa-edit"></i> Edit Draft</h2>
+                <h2><i class="fas fa-file-medical-alt"></i> Amendment Details</h2>
                 <button class="modal-close" id="modalClose">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="modal-section">
                     <h3 class="modal-section-title">
                         <i class="fas fa-info-circle"></i>
-                        Draft Information
+                        Amendment Information
                     </h3>
-                    <div id="modalDraftInfo">
-                        <!-- Draft info will be loaded here -->
+                    <div id="modalAmendmentInfo">
+                        <!-- Amendment info will be loaded here -->
                     </div>
                 </div>
                 
                 <div class="modal-section">
                     <h3 class="modal-section-title">
-                        <i class="fas fa-edit"></i>
+                        <i class="fas fa-tasks"></i>
                         Quick Actions
                     </h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
@@ -2194,11 +2605,11 @@ $recent_drafts = $recent_stmt->fetchAll();
                         <button type="button" class="btn btn-success" id="modalUpdateBtn">
                             <i class="fas fa-sync-alt"></i> Update
                         </button>
-                        <button type="button" class="btn btn-secondary" id="modalVersionBtn">
-                            <i class="fas fa-code-branch"></i> Versions
+                        <button type="button" class="btn btn-secondary" id="modalTrackBtn">
+                            <i class="fas fa-map-marker-alt"></i> Track
                         </button>
-                        <button type="button" class="btn btn-danger" id="modalDeleteBtn">
-                            <i class="fas fa-trash"></i> Delete
+                        <button type="button" class="btn btn-danger" id="modalWithdrawBtn">
+                            <i class="fas fa-times"></i> Withdraw
                         </button>
                     </div>
                 </div>
@@ -2215,10 +2626,10 @@ $recent_drafts = $recent_stmt->fetchAll();
                 
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="modalCancelBtn">
-                        <i class="fas fa-times"></i> Cancel
+                        <i class="fas fa-times"></i> Close
                     </button>
-                    <button type="button" class="btn btn-primary" id="modalContinueBtn">
-                        <i class="fas fa-external-link-alt"></i> Continue to Edit
+                    <button type="button" class="btn btn-primary" id="modalManageBtn">
+                        <i class="fas fa-cog"></i> Manage Amendment
                     </button>
                 </div>
             </div>
@@ -2230,10 +2641,11 @@ $recent_drafts = $recent_stmt->fetchAll();
         <div class="footer-content">
             <div class="footer-column">
                 <div class="footer-info">
-                    <h3>Draft Creation Module</h3>
+                    <h3>Amendment Submission Module</h3>
                     <p>
-                        Create new ordinance and resolution drafts with standard legal formats. 
-                        Assign sponsors and authors, upload supporting documents, and register draft records.
+                        Submit proposed changes to existing ordinances and resolutions. 
+                        Track amendment progress, manage versions, and ensure legislative 
+                        document integrity with comprehensive amendment management.
                     </p>
                 </div>
             </div>
@@ -2242,9 +2654,9 @@ $recent_drafts = $recent_stmt->fetchAll();
                 <h3>Quick Links</h3>
                 <ul class="footer-links">
                     <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-                    <li><a href="creation.php"><i class="fas fa-file-contract"></i> Document Creation</a></li>
-                    <li><a href="templates.php"><i class="fas fa-file-alt"></i> Template Library</a></li>
-                    <li><a href="my_documents.php"><i class="fas fa-folder-open"></i> My Documents</a></li>
+                    <li><a href="amendments.php"><i class="fas fa-file-medical-alt"></i> Amendments Dashboard</a></li>
+                    <li><a href="comparison.php"><i class="fas fa-code-branch"></i> Change Comparison</a></li>
+                    <li><a href="version_storage.php"><i class="fas fa-box-archive"></i> Version Storage</a></li>
                     <li><a href="help.php"><i class="fas fa-question-circle"></i> Help Center</a></li>
                 </ul>
             </div>
@@ -2252,20 +2664,20 @@ $recent_drafts = $recent_stmt->fetchAll();
             <div class="footer-column">
                 <h3>Support Resources</h3>
                 <ul class="footer-links">
-                    <li><a href="#"><i class="fas fa-book"></i> User Guide</a></li>
-                    <li><a href="#"><i class="fas fa-video"></i> Video Tutorials</a></li>
-                    <li><a href="#"><i class="fas fa-phone-alt"></i> Technical Support</a></li>
+                    <li><a href="#"><i class="fas fa-gavel"></i> Legal Guidelines</a></li>
+                    <li><a href="#"><i class="fas fa-video"></i> Amendment Tutorials</a></li>
+                    <li><a href="#"><i class="fas fa-phone-alt"></i> Legislative Support</a></li>
                     <li><a href="#"><i class="fas fa-comments"></i> Feedback & Suggestions</a></li>
                 </ul>
             </div>
         </div>
         
         <div class="copyright">
-            <p>&copy; 2026 Quezon City Government. Draft Creation Module - Ordinance & Resolution Tracking System.</p>
-            <p style="margin-top: 10px;">This interface is for authorized personnel only. All document creation activities are logged.</p>
+            <p>&copy; 2026 Quezon City Government. Amendment Submission Module - Ordinance & Resolution Tracking System.</p>
+            <p style="margin-top: 10px;">This interface is for authorized personnel only. All amendment activities are logged and audited.</p>
             <div class="security-badge">
                 <i class="fas fa-shield-alt"></i>
-                Document Drafting Module | Secure Session Active | User: <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
+                Amendment Submission Module | Secure Session Active | User: <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
             </div>
         </div>
     </footer>
@@ -2289,13 +2701,14 @@ $recent_drafts = $recent_stmt->fetchAll();
                     ['clean']
                 ]
             },
-            placeholder: 'Start writing your ordinance or resolution here...'
+            placeholder: 'Enter the proposed amended content here...'
         });
 
         // Sync Quill content with form textarea
         quill.on('text-change', function() {
-            document.getElementById('content').value = quill.root.innerHTML;
+            document.getElementById('proposed_changes').value = quill.root.innerHTML;
             updateProgress();
+            analyzeChanges();
         });
 
         // Set current date
@@ -2333,28 +2746,52 @@ $recent_drafts = $recent_stmt->fetchAll();
             });
         }
         
-        // Template selection
-        function selectTemplate(templateId) {
-            // Update radio button
-            const radio = document.querySelector(`input[name="template_id"][value="${templateId}"]`);
-            if (radio) {
-                radio.checked = true;
-                
-                // Remove selected class from all templates
-                document.querySelectorAll('.template-option').forEach(option => {
-                    option.classList.remove('selected');
-                });
-                
-                // Add selected class to clicked template
-                radio.closest('.template-option').classList.add('selected');
-                
-                // If template has content, load it into editor
-                if (templateId && templateId !== '') {
-                    // In a real application, you would fetch the template content via AJAX
-                    console.log('Loading template:', templateId);
-                    // Example: fetchTemplateContent(templateId);
-                }
+        // Document selection functionality
+        function loadDocumentDetails(docId) {
+            if (!docId) {
+                document.getElementById('documentPreview').style.display = 'none';
+                document.getElementById('document_type').value = '';
+                document.getElementById('current_version_id').value = '';
+                updateProgress();
+                return;
             }
+            
+            const select = document.getElementById('document_select');
+            const selectedOption = select.options[select.selectedIndex];
+            const docType = selectedOption.getAttribute('data-type');
+            
+            document.getElementById('document_type').value = docType;
+            
+            // In a real application, you would fetch document details via AJAX
+            // For now, we'll simulate with mock data
+            simulateDocumentLoad(docId, docType);
+        }
+        
+        function simulateDocumentLoad(docId, docType) {
+            const preview = document.getElementById('documentPreview');
+            preview.style.display = 'block';
+            
+            // Mock document content
+            const mockContent = `
+                <h4>Document Preview</h4>
+                <div class="document-preview-content">
+                    <p><strong>Document Type:</strong> ${docType === 'ordinance' ? 'Ordinance' : 'Resolution'}</p>
+                    <p><strong>Document ID:</strong> ${docId}</p>
+                    <p><strong>Current Status:</strong> Approved</p>
+                    <p><strong>Last Updated:</strong> February 5, 2026</p>
+                    <p><strong>Content Preview:</strong></p>
+                    <div style="background: white; padding: 10px; border-radius: 5px; border: 1px solid #ddd; margin-top: 10px;">
+                        <p>This is a sample document content. In a real application, this would show the actual document content with highlighted sections that are commonly amended.</p>
+                        <p class="highlight">Section 3.2 - This section is frequently amended</p>
+                        <p>Section 4.1 - Standard procedural clause</p>
+                        <p class="highlight">Section 5.3 - Another commonly modified section</p>
+                    </div>
+                </div>
+            `;
+            
+            preview.innerHTML = mockContent;
+            document.getElementById('current_version_id').value = 'mock_version_' + docId;
+            updateProgress();
         }
         
         // File upload handling
@@ -2504,59 +2941,114 @@ $recent_drafts = $recent_stmt->fetchAll();
         // Form actions
         function saveAsDraft() {
             // In a real application, this would save the form data without submitting
-            alert('Draft saved successfully!');
+            alert('Amendment draft saved successfully!');
         }
         
         function clearForm() {
             if (confirm('Are you sure you want to clear the form? All unsaved changes will be lost.')) {
-                document.getElementById('draftCreationForm').reset();
+                document.getElementById('amendmentSubmissionForm').reset();
                 quill.setText('');
                 uploadedFiles = [];
                 fileList.innerHTML = '';
-                document.querySelectorAll('.template-option').forEach(option => {
-                    option.classList.remove('selected');
-                });
-                document.querySelector('input[name="template_id"][value=""]').checked = true;
-                document.querySelector('input[name="template_id"][value=""]').closest('.template-option').classList.add('selected');
+                document.getElementById('documentPreview').style.display = 'none';
+                document.getElementById('document_type').value = '';
+                document.getElementById('current_version_id').value = '';
                 currentStep = 1;
                 showStep(currentStep);
+                resetAnalytics();
             }
         }
         
-        function previewDocument() {
-            // In a real application, this would open a preview window
-            alert('Document preview feature coming soon!');
+        function compareVersions() {
+            // In a real application, this would open a comparison view
+            const docId = document.getElementById('document_select').value;
+            if (docId) {
+                alert('Opening comparison view for document ' + docId);
+            } else {
+                alert('Please select a document first.');
+            }
+        }
+        
+        function analyzeChanges() {
+            const content = quill.getText().trim();
+            if (content.length > 100) {
+                const changeSummary = document.getElementById('changeSummary');
+                const wordCount = content.split(/\s+/).length;
+                const charCount = content.length;
+                
+                // Mock analysis
+                const analysis = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <strong>Word Count:</strong> ${wordCount}
+                        </div>
+                        <div>
+                            <strong>Character Count:</strong> ${charCount}
+                        </div>
+                        <div>
+                            <strong>Change Type:</strong> Moderate revision
+                        </div>
+                        <div>
+                            <strong>Complexity:</strong> Medium
+                        </div>
+                        <div colspan="2" style="grid-column: span 2;">
+                            <strong>Detected Changes:</strong>
+                            <ul style="margin: 5px 0 0 15px;">
+                                <li>Text modifications in multiple sections</li>
+                                <li>Potential legal implications detected</li>
+                                <li>Formatting changes applied</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                
+                changeSummary.innerHTML = analysis;
+            }
         }
         
         // Form validation
-        document.getElementById('draftCreationForm').addEventListener('submit', function(e) {
+        document.getElementById('amendmentSubmissionForm').addEventListener('submit', function(e) {
             const title = document.getElementById('title').value.trim();
             const description = document.getElementById('description').value.trim();
+            const justification = document.getElementById('justification').value.trim();
             const content = quill.getText().trim();
+            const docId = document.getElementById('document_select').value;
+            
+            if (!docId) {
+                e.preventDefault();
+                alert('Please select a document to amend.');
+                return;
+            }
             
             if (!title) {
                 e.preventDefault();
-                alert('Please enter a document title.');
+                alert('Please enter an amendment title.');
                 return;
             }
             
             if (!description) {
                 e.preventDefault();
-                alert('Please enter a document description.');
+                alert('Please enter an amendment description.');
+                return;
+            }
+            
+            if (!justification) {
+                e.preventDefault();
+                alert('Please provide a justification for the amendment.');
                 return;
             }
             
             if (!content) {
                 e.preventDefault();
-                alert('Please enter document content.');
+                alert('Please enter proposed amendment content.');
                 return;
             }
             
             // Update content textarea with Quill HTML
-            document.getElementById('content').value = quill.root.innerHTML;
+            document.getElementById('proposed_changes').value = quill.root.innerHTML;
             
             // Show confirmation
-            if (!confirm('Are you sure you want to create this draft?')) {
+            if (!confirm('Are you sure you want to submit this amendment for review?')) {
                 e.preventDefault();
             }
         });
@@ -2617,20 +3109,30 @@ $recent_drafts = $recent_stmt->fetchAll();
         function validateStep(step) {
             switch(step) {
                 case 1:
-                    // Document type is always valid (has default)
+                    const docId = document.getElementById('document_select').value;
+                    if (!docId) {
+                        alert('Please select a document to amend.');
+                        return false;
+                    }
                     return true;
                     
                 case 2:
                     const title = document.getElementById('title').value.trim();
                     const description = document.getElementById('description').value.trim();
+                    const justification = document.getElementById('justification').value.trim();
                     
                     if (!title) {
-                        alert('Please enter a document title.');
+                        alert('Please enter an amendment title.');
                         return false;
                     }
                     
                     if (!description) {
-                        alert('Please enter a document description.');
+                        alert('Please enter an amendment description.');
+                        return false;
+                    }
+                    
+                    if (!justification) {
+                        alert('Please provide a justification for the amendment.');
                         return false;
                     }
                     
@@ -2640,7 +3142,7 @@ $recent_drafts = $recent_stmt->fetchAll();
                     const content = quill.getText().trim();
                     
                     if (!content) {
-                        alert('Please enter document content.');
+                        alert('Please enter proposed amendment content.');
                         return false;
                     }
                     
@@ -2651,6 +3153,11 @@ $recent_drafts = $recent_stmt->fetchAll();
                     return true;
                     
                 case 5:
+                    const confirmCheckbox = document.getElementById('confirm_understanding');
+                    if (!confirmCheckbox.checked) {
+                        alert('Please confirm that you have reviewed all amendment details.');
+                        return false;
+                    }
                     return true;
                     
                 default:
@@ -2662,15 +3169,17 @@ $recent_drafts = $recent_stmt->fetchAll();
             let progress = 0;
             
             // Calculate progress based on form completion
-            if (document.querySelector('input[name="document_type"]:checked')) progress += 20;
+            if (document.getElementById('document_select').value) progress += 20;
             
             const title = document.getElementById('title').value.trim();
             const description = document.getElementById('description').value.trim();
+            const justification = document.getElementById('justification').value.trim();
             if (title) progress += 10;
             if (description) progress += 10;
+            if (justification) progress += 10;
             
             const content = quill.getText().trim();
-            if (content) progress += 30;
+            if (content) progress += 20;
             
             const authorsChecked = document.querySelectorAll('input[name="authors[]"]:checked').length;
             if (authorsChecked > 0) progress += 10;
@@ -2687,52 +3196,77 @@ $recent_drafts = $recent_stmt->fetchAll();
             // Update current step display
             document.getElementById('currentStepDisplay').textContent = currentStep + '/5';
             
-            // Update document type display
-            const docType = document.querySelector('input[name="document_type"]:checked');
-            document.getElementById('docTypeDisplay').textContent = docType ? (docType.value === 'ordinance' ? 'Ordinance' : 'Resolution') : 'Not selected';
+            // Update document selection display
+            const docSelect = document.getElementById('document_select');
+            const selectedDoc = docSelect.options[docSelect.selectedIndex];
+            document.getElementById('docSelectedDisplay').textContent = selectedDoc.value ? selectedDoc.text.substring(0, 30) + '...' : 'None';
+            
+            // Update priority display
+            const selectedPriority = document.querySelector('input[name="priority"]:checked');
+            document.getElementById('priorityDisplay').textContent = selectedPriority ? selectedPriority.value.charAt(0).toUpperCase() + selectedPriority.value.slice(1) : 'Low';
             
             // Update authors count
             document.getElementById('authorsCount').textContent = authorsChecked;
+            
+            // Update AI analytics based on progress
+            updateAnalytics(progress);
         }
         
         function updateReviewSummary() {
             const title = document.getElementById('title').value.trim();
             const description = document.getElementById('description').value.trim();
+            const justification = document.getElementById('justification').value.trim();
             const content = quill.getText().trim();
-            const docType = document.querySelector('input[name="document_type"]:checked');
+            const docSelect = document.getElementById('document_select');
+            const selectedDoc = docSelect.options[docSelect.selectedIndex];
+            const selectedPriority = document.querySelector('input[name="priority"]:checked');
             const authors = document.querySelectorAll('input[name="authors[]"]:checked').length;
             const files = uploadedFiles.length;
+            const committeeReview = document.getElementById('committee_review').checked;
+            const publicHearing = document.getElementById('public_hearing').checked;
             
             let summaryHtml = `
                 <div style="background: var(--off-white); padding: 20px; border-radius: var(--border-radius); border: 1px solid var(--gray-light);">
-                    <h4 style="color: var(--qc-blue); margin-bottom: 15px;">Draft Summary</h4>
+                    <h4 style="color: var(--qc-purple); margin-bottom: 15px;">Amendment Summary</h4>
                     
                     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 15px;">
-                        <div style="font-weight: 600;">Document Type:</div>
-                        <div>${docType ? (docType.value === 'ordinance' ? 'Ordinance' : 'Resolution') : 'Not selected'}</div>
+                        <div style="font-weight: 600;">Document:</div>
+                        <div>${selectedDoc.value ? selectedDoc.text : 'Not selected'}</div>
                         
-                        <div style="font-weight: 600;">Title:</div>
+                        <div style="font-weight: 600;">Amendment Title:</div>
                         <div>${title || 'Not entered'}</div>
                         
                         <div style="font-weight: 600;">Description:</div>
                         <div>${description || 'Not entered'}</div>
                         
+                        <div style="font-weight: 600;">Justification Length:</div>
+                        <div>${justification.length} characters</div>
+                        
                         <div style="font-weight: 600;">Content Length:</div>
                         <div>${content.length} characters</div>
+                        
+                        <div style="font-weight: 600;">Priority:</div>
+                        <div>${selectedPriority ? selectedPriority.value.charAt(0).toUpperCase() + selectedPriority.value.slice(1) : 'Low'}</div>
                         
                         <div style="font-weight: 600;">Authors:</div>
                         <div>${authors} selected</div>
                         
                         <div style="font-weight: 600;">Files:</div>
                         <div>${files} uploaded</div>
+                        
+                        <div style="font-weight: 600;">Committee Review:</div>
+                        <div>${committeeReview ? 'Required' : 'Not required'}</div>
+                        
+                        <div style="font-weight: 600;">Public Hearing:</div>
+                        <div>${publicHearing ? 'Required' : 'Not required'}</div>
                     </div>
                     
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--gray-light);">
                         <p style="color: var(--qc-green); font-weight: 600;">
-                            <i class="fas fa-check-circle"></i> Ready to submit!
+                            <i class="fas fa-check-circle"></i> Ready to submit for review!
                         </p>
                         <p style="color: var(--gray); font-size: 0.9rem;">
-                            Click "Create Draft" to submit this document to the drafting system.
+                            Click "Submit Amendment" to send this proposal to the legislative review process.
                         </p>
                     </div>
                 </div>
@@ -2762,56 +3296,116 @@ $recent_drafts = $recent_stmt->fetchAll();
         });
         
         // Form field change listeners for progress updates
-        document.querySelectorAll('input[name="document_type"]').forEach(input => {
-            input.addEventListener('change', updateProgress);
-        });
-        
+        document.getElementById('document_select').addEventListener('change', updateProgress);
         document.getElementById('title').addEventListener('input', updateProgress);
         document.getElementById('description').addEventListener('input', updateProgress);
+        document.getElementById('justification').addEventListener('input', updateProgress);
+        document.querySelectorAll('input[name="priority"]').forEach(input => {
+            input.addEventListener('change', updateProgress);
+        });
         document.querySelectorAll('input[name="authors[]"]').forEach(input => {
             input.addEventListener('change', updateProgress);
+        });
+        document.getElementById('committee_review').addEventListener('change', function() {
+            document.getElementById('committeeSelection').style.display = this.checked ? 'block' : 'none';
+            updateProgress();
+        });
+        document.getElementById('public_hearing').addEventListener('change', function() {
+            document.getElementById('hearingDateSelection').style.display = this.checked ? 'block' : 'none';
+            updateProgress();
         });
         
         // Initialize first step
         showStep(currentStep);
         
-        // EDIT DRAFT MODAL FUNCTIONALITY
-        const editDraftModal = document.getElementById('editDraftModal');
+        // AI ANALYTICS FUNCTIONS
+        function updateAnalytics(progress) {
+            // Update AI analytics based on form progress
+            if (progress >= 50) {
+                // Simulate AI analysis based on form content
+                const title = document.getElementById('title').value.trim();
+                const content = quill.getText().trim();
+                
+                if (title && content) {
+                    // Mock AI analysis results
+                    const successProb = 75 + Math.floor(Math.random() * 15); // 75-90%
+                    const reviewDays = 7 + Math.floor(Math.random() * 8); // 7-14 days
+                    const legalCompliance = Math.random() > 0.3 ? 'High' : 'Medium';
+                    const publicSupport = 65 + Math.floor(Math.random() * 25); // 65-90%
+                    
+                    document.getElementById('aiSuccessProbability').textContent = successProb + '%';
+                    document.getElementById('aiSuccessProbability').parentElement.querySelector('.analytic-progress-bar').style.width = successProb + '%';
+                    
+                    document.getElementById('aiReviewTime').textContent = reviewDays + '-14 days';
+                    document.getElementById('aiReviewTime').parentElement.querySelector('.analytic-progress-bar').style.width = Math.min(reviewDays * 7, 100) + '%';
+                    
+                    document.getElementById('aiLegalCompliance').textContent = legalCompliance;
+                    document.getElementById('aiLegalCompliance').parentElement.querySelector('.analytic-progress-bar').style.width = legalCompliance === 'High' ? '90%' : '70%';
+                    
+                    document.getElementById('aiPublicSupport').textContent = publicSupport + '%';
+                    document.getElementById('aiPublicSupport').parentElement.querySelector('.analytic-progress-bar').style.width = publicSupport + '%';
+                }
+            }
+        }
+        
+        function resetAnalytics() {
+            // Reset AI analytics to default values
+            document.getElementById('aiSuccessProbability').textContent = '85%';
+            document.getElementById('aiSuccessProbability').parentElement.querySelector('.analytic-progress-bar').style.width = '85%';
+            
+            document.getElementById('aiReviewTime').textContent = '7-10 days';
+            document.getElementById('aiReviewTime').parentElement.querySelector('.analytic-progress-bar').style.width = '70%';
+            
+            document.getElementById('aiLegalCompliance').textContent = 'High';
+            document.getElementById('aiLegalCompliance').parentElement.querySelector('.analytic-progress-bar').style.width = '90%';
+            
+            document.getElementById('aiPublicSupport').textContent = '72%';
+            document.getElementById('aiPublicSupport').parentElement.querySelector('.analytic-progress-bar').style.width = '72%';
+        }
+        
+        // AMENDMENT DETAILS MODAL FUNCTIONALITY
+        const amendmentDetailsModal = document.getElementById('amendmentDetailsModal');
         const modalClose = document.getElementById('modalClose');
         const modalCancelBtn = document.getElementById('modalCancelBtn');
-        let currentDraftId = null;
-        let currentDraftType = null;
+        let currentAmendmentId = null;
         
-        // Open modal when edit button is clicked
-        document.querySelectorAll('.edit-draft-btn').forEach(btn => {
+        // Open modal when view button is clicked
+        document.querySelectorAll('.edit-amendment-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                currentDraftId = this.getAttribute('data-draft-id');
-                currentDraftType = this.getAttribute('data-draft-type');
-                const draftNumber = this.getAttribute('data-draft-number');
-                const draftTitle = this.getAttribute('data-draft-title');
-                const draftStatus = this.getAttribute('data-draft-status');
+                currentAmendmentId = this.getAttribute('data-amendment-id');
+                const amendmentNumber = this.getAttribute('data-amendment-number');
+                const amendmentTitle = this.getAttribute('data-amendment-title');
+                const amendmentStatus = this.getAttribute('data-amendment-status');
                 
-                // Load draft info into modal
-                document.getElementById('modalDraftInfo').innerHTML = `
+                // Load amendment info into modal
+                document.getElementById('modalAmendmentInfo').innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 15px;">
-                        <div style="font-weight: 600;">Document Number:</div>
-                        <div>${draftNumber}</div>
+                        <div style="font-weight: 600;">Amendment Number:</div>
+                        <div>${amendmentNumber}</div>
                         
                         <div style="font-weight: 600;">Title:</div>
-                        <div>${draftTitle}</div>
-                        
-                        <div style="font-weight: 600;">Type:</div>
-                        <div>${currentDraftType === 'ordinance' ? 'Ordinance' : 'Resolution'}</div>
+                        <div>${amendmentTitle}</div>
                         
                         <div style="font-weight: 600;">Status:</div>
                         <div>
-                            <span class="draft-status status-${draftStatus}">
-                                ${draftStatus.charAt(0).toUpperCase() + draftStatus.slice(1)}
+                            <span class="amendment-status status-${amendmentStatus}">
+                                ${amendmentStatus.charAt(0).toUpperCase() + amendmentStatus.slice(1)}
                             </span>
                         </div>
                         
-                        <div style="font-weight: 600;">Last Modified:</div>
+                        <div style="font-weight: 600;">Submitted:</div>
                         <div>Just now</div>
+                        
+                        <div style="font-weight: 600;">Current Stage:</div>
+                        <div>Initial submission</div>
+                        
+                        <div style="font-weight: 600;">Review Progress:</div>
+                        <div>
+                            <div style="height: 6px; background: var(--gray-light); border-radius: 3px; overflow: hidden; margin-top: 5px;">
+                                <div style="height: 100%; width: 25%; background: var(--qc-purple);"></div>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--gray); margin-top: 3px;">25% complete</div>
+                        </div>
                     </div>
                 `;
                 
@@ -2819,44 +3413,51 @@ $recent_drafts = $recent_stmt->fetchAll();
                 document.getElementById('modalActivityLog').innerHTML = `
                     <div style="font-size: 0.9rem;">
                         <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--gray-light);">
-                            <i class="fas fa-user-edit" style="color: var(--qc-gold);"></i>
+                            <i class="fas fa-upload" style="color: var(--qc-purple);"></i>
                             <div>
-                                <div>You created this draft</div>
+                                <div>Amendment submitted for review</div>
                                 <div style="color: var(--gray); font-size: 0.85rem;">Just now</div>
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px;">
-                            <i class="fas fa-save" style="color: var(--qc-blue);"></i>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--gray-light);">
+                            <i class="fas fa-user-check" style="color: var(--qc-gold);"></i>
                             <div>
-                                <div>Draft saved automatically</div>
+                                <div>Assigned to initial review queue</div>
                                 <div style="color: var(--gray); font-size: 0.85rem;">A few moments ago</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px;">
+                            <i class="fas fa-clock" style="color: var(--qc-blue);"></i>
+                            <div>
+                                <div>Awaiting committee assignment</div>
+                                <div style="color: var(--gray); font-size: 0.85rem;">Pending</div>
                             </div>
                         </div>
                     </div>
                 `;
                 
                 // Open modal
-                editDraftModal.classList.add('active');
+                amendmentDetailsModal.classList.add('active');
             });
         });
         
         // Close modal
         modalClose.addEventListener('click', closeModal);
         modalCancelBtn.addEventListener('click', closeModal);
-        editDraftModal.addEventListener('click', function(e) {
+        amendmentDetailsModal.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeModal();
             }
         });
         
         function closeModal() {
-            editDraftModal.classList.remove('active');
+            amendmentDetailsModal.classList.remove('active');
         }
         
         // Modal action buttons
         document.getElementById('modalViewBtn').addEventListener('click', function() {
-            if (currentDraftId && currentDraftType) {
-                window.location.href = `edit_draft.php?type=${currentDraftType}&id=${currentDraftId}`;
+            if (currentAmendmentId) {
+                window.location.href = `amendment_details.php?id=${currentAmendmentId}`;
             }
         });
         
@@ -2864,30 +3465,55 @@ $recent_drafts = $recent_stmt->fetchAll();
             alert('Update feature coming soon!');
         });
         
-        document.getElementById('modalVersionBtn').addEventListener('click', function() {
-            alert('Version history feature coming soon!');
+        document.getElementById('modalTrackBtn').addEventListener('click', function() {
+            alert('Tracking feature coming soon!');
         });
         
-        document.getElementById('modalDeleteBtn').addEventListener('click', function() {
-            if (confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
-                alert('Draft deleted successfully!');
+        document.getElementById('modalWithdrawBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to withdraw this amendment? This action may require approval.')) {
+                alert('Amendment withdrawal request submitted!');
                 closeModal();
                 // In a real application, you would redirect or reload the page
                 window.location.reload();
             }
         });
         
-        document.getElementById('modalContinueBtn').addEventListener('click', function() {
-            if (currentDraftId && currentDraftType) {
-                window.location.href = `edit_draft.php?type=${currentDraftType}&id=${currentDraftId}`;
+        document.getElementById('modalManageBtn').addEventListener('click', function() {
+            if (currentAmendmentId) {
+                window.location.href = `amendment_manage.php?id=${currentAmendmentId}`;
             }
         });
         
-        // Initialize template selection
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelector('input[name="template_id"][value=""]').closest('.template-option').classList.add('selected');
+        // Auto-save draft every 30 seconds
+        let autoSaveTimer;
+        function startAutoSave() {
+            autoSaveTimer = setInterval(() => {
+                const title = document.getElementById('title').value.trim();
+                const description = document.getElementById('description').value.trim();
+                
+                if (title || description || quill.getText().trim()) {
+                    console.log('Auto-saving amendment draft...');
+                    // In a real application, save via AJAX
+                }
+            }, 30000);
+        }
+        
+        // Start auto-save
+        startAutoSave();
+        
+        // Stop auto-save when leaving page
+        window.addEventListener('beforeunload', function(e) {
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
             
-            // Add animation to form elements
+            if (title || description || quill.getText().trim()) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved amendment changes. Are you sure you want to leave?';
+            }
+        });
+        
+        // Add animation to form elements
+        document.addEventListener('DOMContentLoaded', function() {
             const observerOptions = {
                 threshold: 0.1,
                 rootMargin: '0px 0px -50px 0px'
@@ -2902,7 +3528,7 @@ $recent_drafts = $recent_stmt->fetchAll();
             }, observerOptions);
             
             // Observe form sections
-            document.querySelectorAll('.form-section, .recent-drafts').forEach(section => {
+            document.querySelectorAll('.form-section, .recent-amendments').forEach(section => {
                 observer.observe(section);
             });
         });
